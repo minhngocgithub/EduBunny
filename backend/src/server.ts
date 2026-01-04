@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import passport from 'passport';
 import { configurePassport } from './shared/config/passport.config';
-import authRoutes from './modules/auth/auth.route';
+import authRoutes from './modules/auth/auth.routes';
 import { logger } from './shared/utils/logger.utils'
 dotenv.config();
 
