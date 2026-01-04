@@ -1,4 +1,3 @@
-
 import { Response } from 'express';
 
 interface SuccessResponseData<T = unknown> {
@@ -14,7 +13,7 @@ interface SuccessResponseData<T = unknown> {
 
 interface ErrorResponseData {
     message: string;
-    errors?: Record<string, unknown>;
+    errors?: Record<string, unknown> | Array<{ field: string; message: string }>;
     stack?: string;
 }
 
@@ -22,7 +21,7 @@ interface ErrorResponse {
     success: false;
     message: string;
     timestamp: string;
-    errors?: Record<string, unknown>;
+    errors?: Record<string, unknown> | Array<{ field: string; message: string }>;
     stack?: string;
 }
 

@@ -21,7 +21,7 @@ export function authMiddleware(
             return;
         }
 
-        const token = authHeader.substring(7); 
+        const token = authHeader.substring(7);
 
         // 2. Verify token
         const decoded = verifyToken(token);
@@ -73,9 +73,8 @@ export function requireRole(...roles: UserRole[]) {
             return;
         }
 
-        // Type assertion to access role from JwtPayload
         const userRole = (req.user).role;
-        
+
         if (!roles.includes(userRole)) {
             errorResponse(
                 res,
