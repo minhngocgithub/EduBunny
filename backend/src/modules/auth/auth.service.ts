@@ -208,12 +208,12 @@ export class AuthService {
         parent: true,
       },
     });
-    
+
     // Don't reveal if user exists or not (security best practice)
     if (!user) {
       return;
     }
-    
+
     const resetToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
@@ -234,7 +234,7 @@ export class AuthService {
 
     // Get user name
     const userName = user.student ? `${user.student.firstName} ${user.student.lastName}` :
-                     user.parent ? `${user.parent.firstName} ${user.parent.lastName}` : undefined;
+      user.parent ? `${user.parent.firstName} ${user.parent.lastName}` : undefined;
 
     // Send password reset email
     await emailService.sendPasswordResetEmail(user.email, resetToken, userName);
@@ -337,13 +337,13 @@ export class AuthService {
       where: { id: userId },
       include: { student: true, parent: true },
     });
-    
+
     if (userWithProfile) {
-      const userName = userWithProfile.student ? 
+      const userName = userWithProfile.student ?
         `${userWithProfile.student.firstName} ${userWithProfile.student.lastName}` :
-        userWithProfile.parent ? 
-        `${userWithProfile.parent.firstName} ${userWithProfile.parent.lastName}` : undefined;
-      
+        userWithProfile.parent ?
+          `${userWithProfile.parent.firstName} ${userWithProfile.parent.lastName}` : undefined;
+
       // Send password changed notification
       try {
         await emailService.sendPasswordChangedNotification(userWithProfile.email, userName);
@@ -393,13 +393,13 @@ export class AuthService {
       where: { id: verificationRecord.userId },
       include: { student: true, parent: true },
     });
-    
+
     if (userWithProfile) {
-      const userName = userWithProfile.student ? 
+      const userName = userWithProfile.student ?
         `${userWithProfile.student.firstName} ${userWithProfile.student.lastName}` :
-        userWithProfile.parent ? 
-        `${userWithProfile.parent.firstName} ${userWithProfile.parent.lastName}` : 'User';
-      
+        userWithProfile.parent ?
+          `${userWithProfile.parent.firstName} ${userWithProfile.parent.lastName}` : 'User';
+
       try {
         await emailService.sendWelcomeEmail(userWithProfile.email, userName);
       } catch (emailError) {

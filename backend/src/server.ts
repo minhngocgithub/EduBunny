@@ -7,8 +7,8 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import passport from 'passport';
-import { configurePassport } from './shared/config/passport.config';
 import authRoutes from './modules/auth/auth.routes';
+import userRoutes from './modules/user/user.routes';
 import { logger } from './shared/utils/logger.utils'
 dotenv.config();
 
@@ -43,7 +43,6 @@ app.use(
 // Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
-configurePassport();
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -52,6 +51,7 @@ app.get('/health', (_req, res) => {
 
 // Routes
 app.use(`${process.env.API_PREFIX || '/api'}/auth`, authRoutes);
+app.use(`${process.env.API_PREFIX || '/api'}/users`, userRoutes);
 
 // Custom error interface
 interface CustomError extends Error {
