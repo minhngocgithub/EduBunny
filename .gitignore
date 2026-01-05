@@ -127,3 +127,7 @@ public/uploads/
 # ============================================
 .eslintcache
 .prettiercache
+
+# Ignore markdown and text files (do not push to GitHub)
+*.md
+*.txt
