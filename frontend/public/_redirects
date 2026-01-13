@@ -1,0 +1,3 @@
+# Redirect old /login to /auth
+/login /auth 301
+/login?* /auth 301

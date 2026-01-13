@@ -46,6 +46,11 @@ export const UpdateStudentSchema = z.object({
         .optional()
         .nullable(),
 
+    avatarSeed: z.string()
+        .max(50, 'Avatar seed is too long')
+        .optional()
+        .nullable(),
+
     bio: z.string()
         .max(500, 'Bio is too long')
         .optional()
@@ -95,6 +100,7 @@ export const LinkChildSchema = z.object({
 export const LeaderboardQuerySchema = z.object({
     grade: z.nativeEnum(Grade).optional(),
     timeframe: z.enum(['weekly', 'monthly', 'all-time']).optional().default('all-time'),
+    metric: z.enum(['xp', 'stars', 'streak', 'achievements']).optional().default('xp'),
     limit: z.coerce.number()
         .int()
         .min(1)

@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
 import { authService } from './auth.service';
 import { RegisterInput } from './auth.types';
-import { User } from '@prisma/client';
 
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -61,19 +60,26 @@ export class AuthController {
   }
 
   googleCallback(req: Request, res: Response, next: NextFunction) {
-    passport.authenticate('google', { session: false }, (err: Error | null, user: User | false) => {
-      if (err || !user) {
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+    passport.authenticate('google', { session: false }, async (err: Error | null, expressUser: Express.User | false) => {
+      if (err || !expressUser) {
+        return res.redirect(`${process.env.FRONTEND_URL}/auth?error=auth_failed`);
       }
 
-      // Cast user to proper type since passport returns generic User
-      const prismaUser = user as User;
+      try {
+        const user = await authService.getUserById(expressUser.userId);
+        
+        if (!user) {
+          return res.redirect(`${process.env.FRONTEND_URL}/auth?error=user_not_found`);
+        }
 
-      // Generate JWT for the user
-      const token = authService['generateToken'](prismaUser);
+        const result = await authService.handleOAuthLogin(user);
 
-      // Redirect to frontend with token
-      res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
+        // QUAN TRỌNG: Redirect đúng đường dẫn
+        res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${result.accessToken}&refreshToken=${result.refreshToken}`);
+      } catch (error) {
+        console.error('Google OAuth callback error:', error);
+        return res.redirect(`${process.env.FRONTEND_URL}/auth?error=auth_failed`);
+      }
     })(req, res, next);
   }
 

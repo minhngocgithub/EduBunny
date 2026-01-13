@@ -9,10 +9,25 @@ export function authMiddleware(
     next: NextFunction
 ): void {
     try {
-        // 1. Get token from header
-        const authHeader = req.headers.authorization;
+        // 1. Get token from cookies first (for Google OAuth httpOnly cookies)
+        // Then fallback to Authorization header (for regular login)
+        let token: string | undefined;
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Check cookies first (for Google OAuth)
+        if (req.cookies && req.cookies.accessToken) {
+            token = req.cookies.accessToken;
+        }
+
+        // Fallback to Authorization header if no cookie
+        if (!token) {
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
+            }
+        }
+
+        // 2. Check if token exists
+        if (!token) {
             errorResponse(
                 res,
                 { message: 'No token provided' },
@@ -21,15 +36,13 @@ export function authMiddleware(
             return;
         }
 
-        const token = authHeader.substring(7);
-
-        // 2. Verify token
+        // 3. Verify token
         const decoded = verifyToken(token);
 
-        // 3. Attach decoded JWT payload to request
+        // 4. Attach decoded JWT payload to request
         req.user = decoded;
 
-        // 4. Continue
+        // 5. Continue
         next();
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Invalid token';
@@ -47,10 +60,22 @@ export function optionalAuthMiddleware(
     next: NextFunction
 ): void {
     try {
-        const authHeader = req.headers.authorization;
+        // Check cookies first (for Google OAuth)
+        let token: string | undefined;
 
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            const token = authHeader.substring(7);
+        if (req.cookies && req.cookies.accessToken) {
+            token = req.cookies.accessToken;
+        }
+
+        // Fallback to Authorization header
+        if (!token) {
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
+            }
+        }
+
+        if (token) {
             const decoded = verifyToken(token);
             req.user = decoded;
         }
