@@ -1,5 +1,6 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import type { JwtPayload, JwtRefreshPayload } from '../../modules/auth/auth.types';
 
 const prisma = new PrismaClient();
@@ -14,25 +15,38 @@ export const generateAccessToken = (payload: JwtPayload): string => {
     } as SignOptions);
 };
 
+/**
+ * 🔧 FIX: Generate token first, then insert to database
+ * This prevents UNIQUE constraint violation on empty token
+ */
 export async function generateRefreshToken(userId: string): Promise<string> {
-    const refreshTokenRecord = await prisma.refreshToken.create({
-        data: {
-            userId,
-            token: '',
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-    });
+    // Generate unique token ID first
+    const tokenId = crypto.randomUUID();
+
+    // Create JWT payload with tokenId
     const payload: JwtRefreshPayload = {
         userId,
-        tokenId: refreshTokenRecord.id
+        tokenId
     };
+
+    // Sign the JWT token
     const token = jwt.sign(payload, JWT_REFRESH_SECRET, {
         expiresIn: JWT_REFRESH_EXPIRES_IN,
     } as SignOptions);
-    await prisma.refreshToken.update({
-        where: { id: refreshTokenRecord.id },
-        data: { token },
+
+    // Calculate expiration date (30 days)
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Insert into database with the generated token
+    await prisma.refreshToken.create({
+        data: {
+            id: tokenId,
+            userId,
+            token,
+            expiresAt,
+        },
     });
+
     return token;
 }
 
@@ -52,6 +66,7 @@ export function verifyToken(token: string): JwtPayload {
         throw new Error('Token verification failed');
     }
 }
+
 export function verifyRefreshToken(token: string): JwtRefreshPayload {
     try {
         const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as JwtRefreshPayload;

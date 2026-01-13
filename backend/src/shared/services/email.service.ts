@@ -39,7 +39,7 @@ export class EmailService {
         }
     }
 
-    private async sendEmail(options: EmailOptions): Promise<void> {
+    async sendEmail(options: EmailOptions): Promise<void> {
         try {
             const info = await this.transporter.sendMail({
                 from: this.from,

@@ -24,7 +24,7 @@ const prisma = new PrismaClient();
 
 export class UserService {
   // ==================== User Profile ====================
-  
+
   async getUserProfile(userId: string): Promise<UserProfile> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -74,7 +74,7 @@ export class UserService {
   }
 
   // ==================== Student Profile ====================
-  
+
   async getStudentProfile(userId: string): Promise<StudentProfile> {
     const student = await prisma.student.findUnique({
       where: { userId },
@@ -147,7 +147,7 @@ export class UserService {
       : 0;
     const gamesPlayed = student.gameScores.length;
     const achievementsUnlocked = student.achievements.length;
-    
+
     // Calculate total study time from progress
     const totalStudyTime = student.progress.reduce(
       (sum, p) => sum + Math.floor(p.watchedSeconds / 60),
@@ -279,7 +279,7 @@ export class UserService {
   }
 
   // ==================== Parent Profile ====================
-  
+
   async getParentProfile(userId: string): Promise<ParentProfile> {
     const parent = await prisma.parent.findUnique({
       where: { userId },
@@ -462,9 +462,9 @@ export class UserService {
   }
 
   // ==================== Leaderboard ====================
-  
+
   async getLeaderboard(filters: LeaderboardFilters): Promise<LeaderboardEntry[]> {
-    const { grade, timeframe = 'all-time', limit = 10 } = filters;
+    const { grade, timeframe = 'all-time', metric = 'xp', limit = 10 } = filters;
 
     let dateFilter = undefined;
     if (timeframe === 'weekly') {
@@ -477,41 +477,145 @@ export class UserService {
       dateFilter = { gte: monthAgo };
     }
 
-    const students = await prisma.student.findMany({
-      where: {
-        ...(grade && { grade }),
-        ...(dateFilter && { lastActiveDate: dateFilter }),
-      },
-      orderBy: [
-        { xp: 'desc' },
-        { level: 'desc' },
-      ],
-      take: limit,
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        avatar: true,
-        xp: true,
-        level: true,
-      },
-    });
+    // Base query for students
+    const whereClause: any = {
+      ...(grade && { grade }),
+      ...(dateFilter && { lastActiveDate: dateFilter }),
+    };
 
-    return students.map((student, index) => ({
-      rank: index + 1,
-      student: {
-        id: student.id,
-        firstName: student.firstName,
-        lastName: student.lastName,
-        avatar: student.avatar,
-      },
-      xp: student.xp,
-      level: student.level,
-    }));
+    let students: any[] = [];
+
+    switch (metric) {
+      case 'xp':
+        // Siêu Cấp XP - Top XP earners
+        students = await prisma.student.findMany({
+          where: whereClause,
+          orderBy: [{ xp: 'desc' }, { level: 'desc' }],
+          take: limit,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            xp: true,
+            level: true,
+            stars: true,
+            streak: true,
+          },
+        });
+        break;
+
+      case 'stars':
+        // Bậc Thầy Ngôi Sao - Top star collectors from quizzes
+        students = await prisma.student.findMany({
+          where: whereClause,
+          orderBy: [{ stars: 'desc' }, { xp: 'desc' }],
+          take: limit,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            xp: true,
+            level: true,
+            stars: true,
+            streak: true,
+          },
+        });
+        break;
+
+      case 'streak':
+        // Chiến Binh Bền Bỉ - Longest streaks
+        students = await prisma.student.findMany({
+          where: whereClause,
+          orderBy: [{ streak: 'desc' }, { xp: 'desc' }],
+          take: limit,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            xp: true,
+            level: true,
+            stars: true,
+            streak: true,
+          },
+        });
+        break;
+
+      case 'achievements':
+        // Thợ Săn Danh Hiệu - Most achievements
+        const studentsWithAchievements = await prisma.student.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            xp: true,
+            level: true,
+            stars: true,
+            streak: true,
+            achievements: {
+              select: { id: true },
+            },
+          },
+        });
+
+        students = studentsWithAchievements
+          .map((student) => ({
+            ...student,
+            achievementCount: student.achievements.length,
+          }))
+          .sort((a, b) => {
+            if (b.achievementCount !== a.achievementCount) {
+              return b.achievementCount - a.achievementCount;
+            }
+            return b.xp - a.xp;
+          })
+          .slice(0, limit);
+        break;
+    }
+
+    return students.map((student, index) => {
+      const entry: LeaderboardEntry = {
+        rank: index + 1,
+        student: {
+          id: student.id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          avatar: student.avatar,
+        },
+        score: 0,
+        xp: student.xp,
+        level: student.level,
+        stars: student.stars,
+        streak: student.streak,
+      };
+
+      // Set primary score based on metric
+      switch (metric) {
+        case 'xp':
+          entry.score = student.xp;
+          break;
+        case 'stars':
+          entry.score = student.stars;
+          break;
+        case 'streak':
+          entry.score = student.streak;
+          break;
+        case 'achievements':
+          entry.score = student.achievementCount || 0;
+          entry.achievements = student.achievementCount || 0;
+          break;
+      }
+
+      return entry;
+    });
   }
 
   // ==================== Account Management ====================
-  
+
   async deleteAccount(userId: string, password: string): Promise<void> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -540,7 +644,7 @@ export class UserService {
   }
 
   // ==================== Helper Methods ====================
-  
+
   private formatActivityDescription(activityType: string): string {
     const descriptions: Record<string, string> = {
       LOGIN: 'Logged in',

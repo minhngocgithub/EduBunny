@@ -1,7 +1,6 @@
-
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  
+
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
@@ -16,7 +15,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'Learning Platform - Học tập cho trẻ em',
+      title: 'EduFun - Học tập là cuộc phiêu lưu',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -24,6 +23,8 @@ export default defineNuxtConfig({
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200' },
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap' },
       ],
     },
   },
@@ -33,7 +34,7 @@ export default defineNuxtConfig({
   tailwindcss: {
     cssPath: '~/assets/css/main.css',
     configPath: 'tailwind.config.js',
-    exposeConfig: true, 
+    exposeConfig: true,
     viewer: true,
   },
 
@@ -44,6 +45,17 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'vercel',
+  },
+
+  // QUAN TRỌNG: Thêm phần này
+  ssr: true,
+
+  routeRules: {
+    // Force client-side rendering for auth pages to avoid hydration mismatch
+    '/auth/**': { ssr: false },
+    '/auth/callback': { ssr: false },
+    // Disable SSR for pages with layout: false to avoid hydration issues
+    '/auth': { ssr: false },
   },
 
   compatibilityDate: '2024-01-01',

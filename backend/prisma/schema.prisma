@@ -80,6 +80,45 @@ enum ActivityType {
   ACHIEVEMENT_UNLOCKED
 }
 
+enum ReportType {
+  DAILY
+  WEEKLY
+}
+
+enum RewardType {
+  EARN
+  SPEND
+  BONUS
+  PENALTY
+  REFUND
+}
+
+enum RewardCategory {
+  LESSON_COMPLETE
+  QUIZ_COMPLETE
+  GAME_PLAY
+  STREAK_BONUS
+  LEVEL_UP
+  SHOP_PURCHASE
+  ACHIEVEMENT_UNLOCK
+  AI_CHAT
+  DAILY_LOGIN
+}
+
+enum Currency {
+  XP
+  COIN
+  STAR
+}
+
+enum ShopItemType {
+  AVATAR
+  STICKER
+  BADGE
+  STREAK_SHIELD
+  THEME
+}
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
@@ -110,7 +149,7 @@ model User {
 
 model RefreshToken {
   id        String   @id @default(uuid())
-  token     String   @unique
+  token     String   @unique @db.VarChar(500)
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -118,7 +157,6 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([token])
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
@@ -163,12 +201,14 @@ model Student {
   dateOfBirth    DateTime
   grade          Grade
   avatar         String?
+  avatarSeed     String?  @db.VarChar(50)
   bio            String?  @db.Text
   preferences    Json?
   xp             Int      @default(0) @db.UnsignedInt
   level          Int      @default(1) @db.UnsignedInt
   stars          Int      @default(0) @db.UnsignedInt
   streak         Int      @default(0) @db.UnsignedInt
+  coins          Int      @default(0) @db.UnsignedInt
   lastActiveDate DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -182,6 +222,9 @@ model Student {
   gameScores   GameScore[]
   achievements StudentAchievement[]
   reviews      CourseReview[]
+  transactions RewardTransaction[]
+  purchases    ShopPurchase[]
+  streakShields StreakShield[]
 
   @@index([userId])
   @@index([parentId])
@@ -203,6 +246,7 @@ model Parent {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   children Student[]
+  monitoringSubscriptions MonitoringSubscription[]
 
   @@index([userId])
   @@index([email])
@@ -546,4 +590,104 @@ model ChatMessage {
   @@index([sessionId])
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+model MonitoringSubscription {
+  id        String   @id @default(uuid())
+  parentId  String
+  childId   String
+  reportType ReportType
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId, reportType])
+  @@index([parentId])
+  @@index([childId])
+  @@map("monitoring_subscriptions")
+}
+
+model ProgressReport {
+  id        String   @id @default(uuid())
+  childId   String
+  reportType ReportType
+  periodStart DateTime
+  periodEnd   DateTime
+  data      Json     // Report data
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([childId, reportType, periodStart])
+  @@index([childId])
+  @@map("progress_reports")
+}
+
+model RewardTransaction {
+  id        String   @id @default(uuid())
+  studentId String
+  type      RewardType
+  category  RewardCategory
+  amount    Int
+  currency  Currency
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+  @@index([category])
+  @@index([currency])
+  @@map("reward_transactions")
+}
+
+model ShopItem {
+  id          String   @id @default(uuid())
+  type        ShopItemType
+  name        String
+  description String   @db.Text
+  icon        String
+  price       Int      @db.UnsignedInt
+  currency    Currency
+  requiredLevel Int?   @db.UnsignedInt
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchases ShopPurchase[]
+
+  @@index([type, isActive])
+  @@index([currency])
+  @@map("shop_items")
+}
+
+model ShopPurchase {
+  id        String   @id @default(uuid())
+  studentId String
+  itemId    String
+  price     Int      @db.UnsignedInt
+  currency  Currency
+  purchasedAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  item    ShopItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, purchasedAt])
+  @@index([itemId])
+  @@map("shop_purchases")
+}
+
+model StreakShield {
+  id        String   @id @default(uuid())
+  studentId String
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, expiresAt])
+  @@index([usedAt])
+  @@map("streak_shields")
 }
