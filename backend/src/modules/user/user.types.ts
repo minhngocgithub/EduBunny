@@ -22,6 +22,7 @@ export interface StudentProfile {
     dateOfBirth: Date;
     grade: Grade;
     avatar: string | null;
+    avatarSeed: string | null;
     bio: string | null;
     preferences: StudentPreferences | null;
     xp: number;
@@ -58,6 +59,7 @@ export interface UpdateStudentInput {
     dateOfBirth?: Date;
     grade?: Grade;
     avatar?: string | null;
+    avatarSeed?: string | null;
     bio?: string | null;
     preferences?: StudentPreferences | null;
 }
@@ -145,13 +147,20 @@ export interface LeaderboardEntry {
         lastName: string;
         avatar: string | null;
     };
-    xp: number;
-    level: number;
+    score: number; // Generic score based on metric type
+    xp?: number;
+    level?: number;
+    stars?: number;
+    streak?: number;
+    achievements?: number;
     isCurrentUser?: boolean;
 }
+
+export type LeaderboardMetric = 'xp' | 'stars' | 'streak' | 'achievements';
 
 export interface LeaderboardFilters {
     grade?: Grade;
     timeframe?: 'weekly' | 'monthly' | 'all-time';
+    metric?: LeaderboardMetric;
     limit?: number;
 }
