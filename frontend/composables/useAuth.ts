@@ -13,14 +13,24 @@ export const useAuth = () => {
         const result = await authStore.login(credentials);
 
         if (result.success) {
+            // Wait a tick to ensure store is fully updated
+            await nextTick();
+            
             // Redirect based on user role
             const role = authStore.userRole;
+            console.log('[useAuth] Login successful, user role:', role);
 
-            if (role === 'STUDENT' || role === 'PARENT') {
-                await router.push('/dashboard');
-            } else if (role === 'ADMIN') {
+            if (role === 'ADMIN') {
+                console.log('[useAuth] Redirecting ADMIN to /admin');
                 await router.push('/admin');
+            } else if (role === 'STUDENT' || role === 'PARENT') {
+                console.log('[useAuth] Redirecting STUDENT/PARENT to /dashboard');
+                await router.push('/dashboard');
+            } else if (role === 'TEACHER') {
+                console.log('[useAuth] Redirecting TEACHER to /dashboard');
+                await router.push('/dashboard');
             } else {
+                console.log('[useAuth] Unknown role, redirecting to /');
                 await router.push('/');
             }
         }
