@@ -367,6 +367,7 @@ model Quiz {
   questions Question[]
   attempts  QuizAttempt[]
 
+  @@unique([courseId, order])
   @@index([courseId])
   @@index([isActive])
   @@map("quizzes")
@@ -388,6 +389,7 @@ model Question {
   quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers Answer[]
 
+  @@unique([quizId, order])
   @@index([quizId])
   @@index([order])
   @@map("questions")

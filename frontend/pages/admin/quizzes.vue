@@ -132,13 +132,27 @@
 </template>
 
 <script setup lang="ts">
+// TODO: Backend Quiz API chưa được implement
+// Khi backend sẵn sàng, thêm API endpoints vào types/api.ts:
+// ADMIN: {
+//   QUIZ: {
+//     LIST: '/admin/quiz',
+//     CREATE: '/admin/quiz',
+//     UPDATE: (id: string) => `/admin/quiz/${id}`,
+//     DELETE: (id: string) => `/admin/quiz/${id}`,
+//     QUESTIONS: (id: string) => `/admin/quiz/${id}/questions`,
+//   }
+// }
+
 definePageMeta({
   layout: 'admin',
   middleware: ['auth', 'admin'],
 });
 
 const showCreateQuizModal = ref(false);
+const loading = ref(false);
 
+// Placeholder data - Sẽ được thay thế bằng API call khi backend sẵn sàng
 const questionBank = ref([
   { label: 'Dễ (Grade 1-2)', count: 450, color: 'text-success' },
   { label: 'Trung bình (Grade 3-4)', count: 820, color: 'text-secondary' },
@@ -166,13 +180,31 @@ const avgCompletionRate = computed(() => {
   return Math.round(total / quizzes.value.length);
 });
 
+// TODO: Implement API calls when backend is ready
+// const fetchQuizzes = async () => {
+//   loading.value = true;
+//   try {
+//     const response = await apiClient.get(API_ENDPOINTS.ADMIN.QUIZ.LIST);
+//     if (response.success && response.data) {
+//       quizzes.value = response.data;
+//     }
+//   } catch (error: any) {
+//     showToast({ type: 'error', message: 'Không thể tải danh sách quiz' });
+//   } finally {
+//     loading.value = false;
+//   }
+// };
+
 const createQuiz = async () => {
   console.log('Creating quiz:', newQuiz.value);
+  // TODO: Call API to create quiz
+  // await apiClient.post(API_ENDPOINTS.ADMIN.QUIZ.CREATE, newQuiz.value);
   showCreateQuizModal.value = false;
 };
 
 const editQuiz = (quizId: number) => {
   console.log('Editing quiz:', quizId);
+  // TODO: Navigate to quiz edit page or open modal
 };
 
 useHead({

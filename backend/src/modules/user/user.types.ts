@@ -164,3 +164,39 @@ export interface LeaderboardFilters {
     metric?: LeaderboardMetric;
     limit?: number;
 }
+
+// Admin Types
+export interface AdminUserListItem {
+    id: string;
+    email: string;
+    role: UserRole;
+    isActive: boolean;
+    emailVerified: boolean;
+    lastLoginAt: Date | null;
+    createdAt: Date;
+    student?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatar: string | null;
+        grade: Grade;
+        level: number;
+        xp: number;
+        stars: number;
+    } | null;
+    parent?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+}
+
+export interface AdminUsersListResponse {
+    users: AdminUserListItem[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}

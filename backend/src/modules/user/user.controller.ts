@@ -7,7 +7,9 @@ import {
     LinkChildDTO,
     LeaderboardQueryDTO,
     DeleteAccountDTO,
+    AdminListUsersQueryDTO,
 } from './user.dto';
+import { ToggleUserActiveDTO, ChangeUserRoleDTO, AdminDeleteUserDTO } from './user.admin.dto';
 
 export class UserController {
     // ==================== User Profile ====================
@@ -323,6 +325,82 @@ export class UserController {
             res.json({
                 success: true,
                 message: 'Account deleted successfully',
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ==================== Admin Methods ====================
+    async getAllUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const query: AdminListUsersQueryDTO = req.query as unknown as AdminListUsersQueryDTO;
+            const result = await userService.getAllUsers(query);
+
+            res.json({
+                success: true,
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getUserById(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id } = req.params;
+            const user = await userService.getUserById(id);
+
+            res.json({
+                success: true,
+                data: user,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async toggleUserActive(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id } = req.params;
+            const input: ToggleUserActiveDTO = req.body;
+            const user = await userService.toggleUserActive(id, input.isActive);
+
+            res.json({
+                success: true,
+                data: user,
+                message: `User ${input.isActive ? 'activated' : 'deactivated'} successfully`,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async changeUserRole(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id } = req.params;
+            const input: ChangeUserRoleDTO = req.body;
+            const user = await userService.changeUserRole(id, input.role);
+
+            res.json({
+                success: true,
+                data: user,
+                message: 'User role changed successfully',
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async adminDeleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id } = req.params;
+            const input: AdminDeleteUserDTO = req.body;
+            await userService.adminDeleteUser(id, input.reason);
+
+            res.json({
+                success: true,
+                message: 'User deleted successfully',
             });
         } catch (error) {
             next(error);

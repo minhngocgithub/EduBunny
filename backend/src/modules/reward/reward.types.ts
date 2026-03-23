@@ -10,6 +10,16 @@ import {
   Prisma,
 } from '@prisma/client';
 
+export enum RewardTrigger {
+  QUIZ_PASS = 'QUIZ_PASS',
+  QUIZ_PERFECT = 'QUIZ_PERFECT',
+  LECTURE_COMPLETE = 'LECTURE_COMPLETE',
+  COURSE_COMPLETE = 'COURSE_COMPLETE',
+  STREAK_MAINTAIN = 'STREAK_MAINTAIN',
+  DAILY_LOGIN = 'DAILY_LOGIN',
+  ACHIEVEMENT_UNLOCK = 'ACHIEVEMENT_UNLOCK',
+}
+
 // ==================== Reward Types ====================
 
 export interface RewardResult {
@@ -54,6 +64,7 @@ export interface GrantRewardInput {
     score?: number;
     stars?: number;
     achievementId?: string;
+    achievementTitle?: string;
     isPerfect?: boolean;
   };
 }

@@ -56,6 +56,9 @@ export default defineNuxtConfig({
     '/auth/callback': { ssr: false },
     // Disable SSR for pages with layout: false to avoid hydration issues
     '/auth': { ssr: false },
+    // IMPORTANT: Disable SSR for admin pages to prevent routing issues
+    '/admin': { ssr: false },
+    '/admin/**': { ssr: false },
   },
 
   compatibilityDate: '2024-01-01',

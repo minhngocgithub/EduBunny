@@ -4,7 +4,6 @@ import { authMiddleware, requireStudent } from '@/shared/config/passport.config'
 import { validateRequest } from '@/shared/middleware/validation.middleware';
 import {
     TrackViewingSchema,
-    CompleteLectureSchema,
 } from './progress.dto';
 
 const router = Router();

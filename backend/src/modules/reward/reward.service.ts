@@ -4,6 +4,7 @@ import {
   RewardResult,
   RewardBreakdown,
   GrantRewardInput,
+  RewardTrigger,
   LevelUpResult,
   StreakStatus,
   StreakBonusResult,
@@ -30,8 +31,48 @@ import { notificationService } from '../../shared/services/notification.service'
 
 const prisma = new PrismaClient();
 
+const REWARD_TRIGGER_CONFIG: Record<RewardTrigger, RewardCategory> = {
+  [RewardTrigger.QUIZ_PASS]: RewardCategory.QUIZ_COMPLETE,
+  [RewardTrigger.QUIZ_PERFECT]: RewardCategory.QUIZ_COMPLETE,
+  [RewardTrigger.LECTURE_COMPLETE]: RewardCategory.LESSON_COMPLETE,
+  [RewardTrigger.COURSE_COMPLETE]: RewardCategory.LESSON_COMPLETE,
+  [RewardTrigger.STREAK_MAINTAIN]: RewardCategory.STREAK_BONUS,
+  [RewardTrigger.DAILY_LOGIN]: RewardCategory.DAILY_LOGIN,
+  [RewardTrigger.ACHIEVEMENT_UNLOCK]: RewardCategory.ACHIEVEMENT_UNLOCK,
+};
+
 export class RewardService {
   // ==================== Core Reward Methods ====================
+
+  async grantByTrigger(
+    studentId: string,
+    trigger: RewardTrigger,
+    metadata: Record<string, unknown> = {}
+  ): Promise<RewardResult> {
+    const category = REWARD_TRIGGER_CONFIG[trigger];
+
+    const normalizedMetadata: GrantRewardInput['metadata'] = {
+      ...metadata,
+    };
+
+    if (trigger === RewardTrigger.QUIZ_PERFECT) {
+      normalizedMetadata.isPerfect = true;
+      normalizedMetadata.stars = 3;
+    }
+
+    const result = await this.grantReward({
+      studentId,
+      category,
+      metadata: normalizedMetadata,
+    });
+
+    if (trigger !== RewardTrigger.ACHIEVEMENT_UNLOCK) {
+      const { achievementService } = await import('../achievement/achievement.service');
+      await achievementService.checkAndUnlock(studentId);
+    }
+
+    return result;
+  }
 
   /**
    * Grant rewards to a student based on activity
@@ -197,6 +238,14 @@ export class RewardService {
       case RewardCategory.ACHIEVEMENT_UNLOCK:
         baseXP = REWARD_RULES.ACHIEVEMENT_UNLOCK.baseXP;
         baseCoins = REWARD_RULES.ACHIEVEMENT_UNLOCK.baseCoins;
+
+        if (metadata.achievementTitle && typeof metadata.achievementTitle === 'string') {
+          notificationService.notifyAchievementUnlock(
+            student.userId,
+            metadata.achievementTitle,
+            REWARD_RULES.ACHIEVEMENT_UNLOCK.baseXP
+          ).catch(err => console.error('Failed to send achievement unlock reward notification:', err));
+        }
         break;
 
       case RewardCategory.AI_CHAT: {
