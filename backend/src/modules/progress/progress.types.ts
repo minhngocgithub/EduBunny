@@ -1,4 +1,4 @@
-import { Progress, Lecture, Course, Enrollment } from '@prisma/client';
+import { Progress, Lecture, Enrollment } from '@prisma/client';
 
 // Progress with relations
 export interface ProgressWithRelations extends Progress {
