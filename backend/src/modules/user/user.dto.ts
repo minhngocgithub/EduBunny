@@ -118,6 +118,15 @@ export const DeleteAccountSchema = z.object({
     }),
 });
 
+// Admin List Users Query Schema
+export const AdminListUsersQuerySchema = z.object({
+    search: z.string().optional(),
+    role: z.enum(['STUDENT', 'PARENT', 'TEACHER', 'ADMIN']).optional(),
+    isActive: z.coerce.boolean().optional(),
+    page: z.coerce.number().int().min(1).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
 // Export types
 export type UpdateUserDTO = z.infer<typeof UpdateUserSchema>;
 export type UpdateStudentDTO = z.infer<typeof UpdateStudentSchema>;
@@ -126,3 +135,4 @@ export type LinkChildDTO = z.infer<typeof LinkChildSchema>;
 export type LeaderboardQueryDTO = z.infer<typeof LeaderboardQuerySchema>;
 export type DeleteAccountDTO = z.infer<typeof DeleteAccountSchema>;
 export type AddXpDTO = z.infer<typeof AddXpSchema>;
+export type AdminListUsersQueryDTO = z.infer<typeof AdminListUsersQuerySchema>;

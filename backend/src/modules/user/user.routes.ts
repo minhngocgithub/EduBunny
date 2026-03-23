@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { userController } from './user.controller'
-import { authMiddleware, requireStudent, requireParent } from '@/shared/config/passport.config'
+import { authMiddleware, requireStudent, requireParent, requireAdmin } from '@/shared/config/passport.config'
 import { validateRequest, validateQuery } from '@/shared/middleware/validation.middleware'
 import {
   UpdateUserSchema,
@@ -10,11 +10,18 @@ import {
   LeaderboardQuerySchema,
   DeleteAccountSchema,
   AddXpSchema,
+  AdminListUsersQuerySchema,
 } from './user.dto'
+import {
+  ToggleUserActiveSchema,
+  ChangeUserRoleSchema,
+  AdminDeleteUserSchema,
+} from './user.admin.dto'
 
 const router = Router()
 
 // ==================== User Profile Routes ====================
+// NOTE: These specific routes MUST come before parametric routes like /:id
 
 router.get('/profile', authMiddleware, userController.getUserProfile.bind(userController))
 router.patch('/profile', authMiddleware, validateRequest(UpdateUserSchema), userController.updateUser.bind(userController))
@@ -69,5 +76,47 @@ router.get('/parent/children-progress', authMiddleware, requireParent, userContr
 // ==================== Leaderboard Routes ====================
 
 router.get('/leaderboard', validateQuery(LeaderboardQuerySchema), userController.getLeaderboard.bind(userController))
+
+// ==================== Admin Routes ====================
+// NOTE: Parametric routes like /:id must come AFTER all specific routes
+
+router.get(
+  '/',
+  authMiddleware,
+  requireAdmin,
+  validateQuery(AdminListUsersQuerySchema),
+  userController.getAllUsers.bind(userController)
+)
+
+router.get(
+  '/:id',
+  authMiddleware,
+  requireAdmin,
+  userController.getUserById.bind(userController)
+)
+
+router.patch(
+  '/:id/toggle-active',
+  authMiddleware,
+  requireAdmin,
+  validateRequest(ToggleUserActiveSchema),
+  userController.toggleUserActive.bind(userController)
+)
+
+router.patch(
+  '/:id/change-role',
+  authMiddleware,
+  requireAdmin,
+  validateRequest(ChangeUserRoleSchema),
+  userController.changeUserRole.bind(userController)
+)
+
+router.delete(
+  '/:id',
+  authMiddleware,
+  requireAdmin,
+  validateRequest(AdminDeleteUserSchema),
+  userController.adminDeleteUser.bind(userController)
+)
 
 export default router
