@@ -2,16 +2,16 @@
   <div class="min-h-screen bg-[#F0F2F5] dark:bg-slate-950 flex font-body transition-colors duration-300">
     <!-- Admin Sidebar -->
     <aside class="w-72 bg-[#2C3E50] dark:bg-slate-900 text-white flex flex-col fixed inset-y-0 z-50 transition-colors">
-      <div class="p-8 flex items-center gap-3">
-        <div class="size-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-          <span class="material-symbols-outlined font-bold">settings_suggest</span>
+      <div class="flex items-center gap-3 p-8">
+        <div class="flex items-center justify-center text-white shadow-lg size-10 bg-primary rounded-xl">
+          <span class="font-bold material-symbols-outlined">settings_suggest</span>
         </div>
-        <span class="font-display text-2xl font-bold tracking-tight">AdminHub</span>
+        <span class="text-2xl font-bold tracking-tight font-display">Admin Edu</span>
       </div>
 
-      <nav class="flex-1 px-4 space-y-2 mt-4">
+      <nav class="flex-1 px-4 mt-4 space-y-2">
         <NuxtLink v-for="item in sidebarItems" :key="item.path" :to="item.path"
-          class="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all" :class="isActive(item.path)
+          class="flex items-center w-full gap-4 px-6 py-4 font-bold transition-all rounded-2xl" :class="isActive(item.path)
             ? 'bg-primary text-white shadow-xl shadow-primary/20'
             : 'text-slate-400 hover:bg-white/5 hover:text-white'">
           <span class="material-symbols-outlined">{{ item.icon }}</span>
@@ -21,7 +21,7 @@
 
       <div class="p-6">
         <button @click="handleLogout"
-          class="w-full py-4 bg-slate-800 dark:bg-slate-800/50 rounded-2xl font-bold text-slate-400 hover:text-white flex items-center justify-center gap-2 transition-all">
+          class="flex items-center justify-center w-full gap-2 py-4 font-bold transition-all bg-slate-800 dark:bg-slate-800/50 rounded-2xl text-slate-400 hover:text-white">
           <span class="material-symbols-outlined">logout</span>
           Đăng xuất Admin
         </button>
@@ -29,20 +29,20 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 ml-72 p-10">
-      <header class="flex justify-between items-center mb-10">
+    <main class="flex-1 p-10 ml-72">
+      <header class="flex items-center justify-between mb-10">
         <div>
-          <h1 class="text-3xl font-display font-bold text-slate-800 dark:text-white">
+          <h1 class="text-3xl font-bold font-display text-slate-800 dark:text-white">
             {{ currentPageTitle }}
           </h1>
-          <p class="text-slate-500 dark:text-slate-400 font-medium">Hệ thống quản trị EduFun Ecosystem</p>
+          <p class="font-medium text-slate-500 dark:text-slate-400">Hệ thống quản trị EduFun Ecosystem</p>
         </div>
         <div class="flex items-center gap-4">
           <button @click="themeStore.toggleTheme()"
-            class="size-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center hover:scale-110 transition-transform shadow-sm">
-            <span class="material-symbols-outlined text-xl">{{ themeStore.isDark ? 'light_mode' : 'dark_mode' }}</span>
+            class="flex items-center justify-center transition-transform bg-white shadow-sm size-12 rounded-xl dark:bg-slate-800 hover:scale-110">
+            <span class="text-xl material-symbols-outlined">{{ themeStore.isDark ? 'light_mode' : 'dark_mode' }}</span>
           </button>
-          <div class="size-12 rounded-full overflow-hidden border-2 border-primary shadow-lg">
+          <div class="overflow-hidden border-2 rounded-full shadow-lg size-12 border-primary">
             <img src="https://picsum.photos/100/100?random=admin" alt="Admin" />
           </div>
         </div>

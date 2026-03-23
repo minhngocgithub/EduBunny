@@ -101,43 +101,182 @@
 </template>
 
 <script setup lang="ts">
+import { API_ENDPOINTS } from '~/types/api';
+
 definePageMeta({
   layout: 'admin',
   middleware: ['auth', 'admin'],
 });
 
-const chartPeriod = ref('7');
+const { apiClient } = useApiClient();
+const { showToast } = useToast();
 
+const chartPeriod = ref('7');
+const loading = ref(true);
+
+// Data from API
 const stats = ref([
-  { label: 'Tổng học sinh', value: '2,450', change: '+12% từ tháng trước', icon: 'school', color: 'text-primary' },
-  { label: 'Khóa học hoạt động', value: '48', change: '+3 khóa mới', icon: 'auto_stories', color: 'text-secondary' },
-  { label: 'Tỷ lệ hoàn thành', value: '78%', change: '+5% so với tuần trước', icon: 'task_alt', color: 'text-success' },
-  { label: 'AI Chatbot', value: '45.2K', change: 'Hỏi đáp hôm nay', icon: 'psychology', color: 'text-accent' },
+  { label: 'Tổng học sinh', value: '...', change: 'Đang tải...', icon: 'school', color: 'text-primary' },
+  { label: 'Khóa học hoạt động', value: '...', change: 'Đang tải...', icon: 'auto_stories', color: 'text-secondary' },
+  { label: 'Tỷ lệ hoàn thành', value: '...', change: 'Đang tải...', icon: 'task_alt', color: 'text-success' },
+  { label: 'Người dùng hoạt động', value: '...', change: 'Đang tải...', icon: 'trending_up', color: 'text-accent' },
 ]);
 
-const chartData = ref([40, 60, 45, 90, 65, 80, 100]);
+const chartData = ref<number[]>([]);
 const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const subjectDistribution = ref([
-  { label: 'Toán học', percentage: 35, color: 'bg-primary' },
-  { label: 'Tiếng Việt', percentage: 28, color: 'bg-secondary' },
-  { label: 'Tiếng Anh', percentage: 22, color: 'bg-accent' },
-  { label: 'Khoa học', percentage: 15, color: 'bg-success' },
-]);
+const subjectDistribution = ref<Array<{ label: string; percentage: number; color: string }>>([]);
+const recentActivities = ref<Array<{ title: string; time: string; icon: string; color: string }>>([]);
+const topCourses = ref<Array<{ name: string; students: number; completionRate: number }>>([]);
 
-const recentActivities = ref([
-  { title: 'Học sinh mới đăng ký', time: '5 phút trước', icon: 'person_add', color: 'bg-primary' },
-  { title: 'Khóa học "Toán 101" được phê duyệt', time: '1 giờ trước', icon: 'check_circle', color: 'bg-success' },
-  { title: 'Quiz "Phép nhân" được tạo', time: '2 giờ trước', icon: 'quiz', color: 'bg-secondary' },
-  { title: 'Báo cáo phụ huynh đã gửi', time: '3 giờ trước', icon: 'mail', color: 'bg-accent' },
-]);
+// Fetch dashboard data
+const fetchDashboardStats = async () => {
+  try {
+    const response = await apiClient.get<{
+      totalStudents: number;
+      activeUsers: number;
+      publishedCourses: number;
+      totalCourses: number;
+      avgCompletionRate: number;
+    }>(API_ENDPOINTS.ADMIN.DASHBOARD.STATS);
+    if (response.success && response.data) {
+      const data = response.data;
+      stats.value = [
+        { 
+          label: 'Tổng học sinh', 
+          value: data.totalStudents.toLocaleString(), 
+          change: `${data.activeUsers} đang hoạt động`, 
+          icon: 'school', 
+          color: 'text-primary' 
+        },
+        { 
+          label: 'Khóa học hoạt động', 
+          value: data.publishedCourses.toString(), 
+          change: `${data.totalCourses} tổng`, 
+          icon: 'auto_stories', 
+          color: 'text-secondary' 
+        },
+        { 
+          label: 'Tỷ lệ hoàn thành', 
+          value: `${Math.round(data.avgCompletionRate)}%`, 
+          change: 'Trung bình', 
+          icon: 'task_alt', 
+          color: 'text-success' 
+        },
+        { 
+          label: 'Người dùng hoạt động', 
+          value: data.activeUsers.toLocaleString(), 
+          change: '30 ngày qua', 
+          icon: 'trending_up', 
+          color: 'text-accent' 
+        },
+      ];
+    }
+  } catch (error: unknown) {
+    showToast({ type: 'error', message: 'Không thể tải thống kê' });
+  }
+};
 
-const topCourses = ref([
-  { name: 'Toán học cơ bản', students: 1240, completionRate: 92 },
-  { name: 'Tiếng Việt sáng tạo', students: 856, completionRate: 85 },
-  { name: 'English for Kids', students: 743, completionRate: 78 },
-  { name: 'Khoa học vui', students: 612, completionRate: 81 },
-]);
+const fetchUserGrowth = async () => {
+  try {
+    const response = await apiClient.get<Array<{ date: string; count: number }>>(
+      API_ENDPOINTS.ADMIN.DASHBOARD.USER_GROWTH,
+      { days: parseInt(chartPeriod.value) }
+    );
+    if (response.success && response.data) {
+      const maxCount = Math.max(...response.data.map((d) => d.count), 1);
+      chartData.value = response.data.map((d) => (d.count / maxCount) * 100);
+    }
+  } catch (error: unknown) {
+    console.error('Failed to fetch user growth:', error);
+  }
+};
+
+const fetchSubjectDistribution = async () => {
+  try {
+    const response = await apiClient.get<Array<{ subject: string; percentage: number }>>(
+      API_ENDPOINTS.ADMIN.DASHBOARD.SUBJECT_DISTRIBUTION
+    );
+    if (response.success && response.data) {
+      const colors = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-success', 'bg-warning'];
+      subjectDistribution.value = response.data.slice(0, 5).map((item, index: number) => ({
+        label: getSubjectName(item.subject),
+        percentage: item.percentage,
+        color: colors[index % colors.length],
+      }));
+    }
+  } catch (error: unknown) {
+    console.error('Failed to fetch subject distribution:', error);
+  }
+};
+
+const fetchRecentActivities = async () => {
+  try {
+    const response = await apiClient.get<Array<{ title: string; time: string; icon: string; color: string }>>(
+      API_ENDPOINTS.ADMIN.DASHBOARD.RECENT_ACTIVITIES,
+      { limit: 5 }
+    );
+    if (response.success && response.data) {
+      recentActivities.value = response.data;
+    }
+  } catch (error: unknown) {
+    console.error('Failed to fetch recent activities:', error);
+  }
+};
+
+const fetchTopCourses = async () => {
+  try {
+    const response = await apiClient.get<Array<{ name: string; students: number; completionRate: number }>>(
+      API_ENDPOINTS.ADMIN.DASHBOARD.TOP_COURSES,
+      { limit: 4 }
+    );
+    if (response.success && response.data) {
+      topCourses.value = response.data;
+    }
+  } catch (error: unknown) {
+    console.error('Failed to fetch top courses:', error);
+  }
+};
+
+// Load all data
+const loadDashboard = async () => {
+  loading.value = true;
+  await Promise.all([
+    fetchDashboardStats(),
+    fetchUserGrowth(),
+    fetchSubjectDistribution(),
+    fetchRecentActivities(),
+    fetchTopCourses(),
+  ]);
+  loading.value = false;
+};
+
+// Watch chart period change
+watch(chartPeriod, () => {
+  fetchUserGrowth();
+});
+
+// Initial load
+onMounted(() => {
+  loadDashboard();
+});
+
+// Helper function
+const getSubjectName = (subject: string): string => {
+  const names: Record<string, string> = {
+    MATH: 'Toán học',
+    VIETNAMESE: 'Tiếng Việt',
+    ENGLISH: 'Tiếng Anh',
+    SCIENCE: 'Khoa học',
+    HISTORY: 'Lịch sử',
+    GEOGRAPHY: 'Địa lý',
+    ART: 'Mỹ thuật',
+    MUSIC: 'Âm nhạc',
+    PE: 'Thể dục',
+    LIFE_SKILLS: 'Kỹ năng sống',
+  };
+  return names[subject] || subject;
+};
 
 useHead({
   title: 'Admin Dashboard - EduFun',

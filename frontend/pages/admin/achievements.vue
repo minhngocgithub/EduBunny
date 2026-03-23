@@ -74,13 +74,26 @@
 </template>
 
 <script setup lang="ts">
+// TODO: Backend Achievement API chưa được implement
+// Khi backend sẵn sàng, thêm API endpoints vào types/api.ts:
+// ADMIN: {
+//   ACHIEVEMENT: {
+//     LIST: '/admin/achievements',
+//     CREATE: '/admin/achievements',
+//     UPDATE: (id: string) => `/admin/achievements/${id}`,
+//     DELETE: (id: string) => `/admin/achievements/${id}`,
+//   }
+// }
+
 definePageMeta({
   layout: 'admin',
   middleware: ['auth', 'admin'],
 });
 
 const showCreateModal = ref(false);
+const loading = ref(false);
 
+// Placeholder data - Sẽ được thay thế bằng API call khi backend sẵn sàng
 const achievements = ref([
   {
     id: 1,
@@ -137,16 +150,35 @@ const newAchievement = ref({
   xpReward: 100,
 });
 
+// TODO: Implement API calls when backend is ready
+// const fetchAchievements = async () => {
+//   loading.value = true;
+//   try {
+//     const response = await apiClient.get(API_ENDPOINTS.ADMIN.ACHIEVEMENT.LIST);
+//     if (response.success && response.data) {
+//       achievements.value = response.data;
+//     }
+//   } catch (error: any) {
+//     showToast({ type: 'error', message: 'Không thể tải danh sách thành tích' });
+//   } finally {
+//     loading.value = false;
+//   }
+// };
+
 const createAchievement = async () => {
   console.log('Creating achievement:', newAchievement.value);
+  // TODO: Call API to create achievement
+  // await apiClient.post(API_ENDPOINTS.ADMIN.ACHIEVEMENT.CREATE, newAchievement.value);
   showCreateModal.value = false;
 };
 
 const editAchievement = (id: number) => {
   console.log('Editing achievement:', id);
+  // TODO: Navigate to achievement edit page or open modal
 };
 
 useHead({
   title: 'Quản lý Thành tích - Admin',
 });
 </script>
+

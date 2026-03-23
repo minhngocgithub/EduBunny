@@ -99,13 +99,26 @@
 </template>
 
 <script setup lang="ts">
+// TODO: Backend Game API chưa được implement
+// Khi backend sẵn sàng, thêm API endpoints vào types/api.ts:
+// ADMIN: {
+//   GAME: {
+//     LIST: '/admin/games',
+//     CREATE: '/admin/games',
+//     UPDATE: (id: string) => `/admin/games/${id}`,
+//     DELETE: (id: string) => `/admin/games/${id}`,
+//   }
+// }
+
 definePageMeta({
   layout: 'admin',
   middleware: ['auth', 'admin'],
 });
 
 const showCreateModal = ref(false);
+const loading = ref(false);
 
+// Placeholder data - Sẽ được thay thế bằng API call khi backend sẵn sàng
 const games = ref([
   {
     id: 1,
@@ -149,18 +162,38 @@ const newGame = ref({
   difficulty: 'EASY',
 });
 
+// TODO: Implement API calls when backend is ready
+// const fetchGames = async () => {
+//   loading.value = true;
+//   try {
+//     const response = await apiClient.get(API_ENDPOINTS.ADMIN.GAME.LIST);
+//     if (response.success && response.data) {
+//       games.value = response.data;
+//     }
+//   } catch (error: any) {
+//     showToast({ type: 'error', message: 'Không thể tải danh sách trò chơi' });
+//   } finally {
+//     loading.value = false;
+//   }
+// };
+
 const createGame = async () => {
   console.log('Creating game:', newGame.value);
+  // TODO: Call API to create game
+  // await apiClient.post(API_ENDPOINTS.ADMIN.GAME.CREATE, newGame.value);
   showCreateModal.value = false;
 };
 
 const editGame = (id: number) => {
   console.log('Editing game:', id);
+  // TODO: Navigate to game edit page or open modal
 };
 
 const deleteGame = async (id: number) => {
   if (confirm('Bạn có chắc muốn xóa trò chơi này?')) {
     console.log('Deleting game:', id);
+    // TODO: Call API to delete game
+    // await apiClient.delete(API_ENDPOINTS.ADMIN.GAME.DELETE(id.toString()));
   }
 };
 
@@ -168,3 +201,4 @@ useHead({
   title: 'Quản lý Trò chơi - Admin',
 });
 </script>
+
