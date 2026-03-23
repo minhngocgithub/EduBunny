@@ -128,6 +128,11 @@ public/uploads/
 .eslintcache
 .prettiercache
 
+# ============================================
+# PROJECT DOCUMENTATION (Private)
+# ============================================
+history/
+
 # Ignore markdown and text files (do not push to GitHub)
 *.md
 *.txt

@@ -1,4 +1,4 @@
-import { Course, Subject, Grade } from '@prisma/client';
+import { Course, Subject } from '@prisma/client';
 
 // Course recommendation result
 export interface CourseRecommendation {

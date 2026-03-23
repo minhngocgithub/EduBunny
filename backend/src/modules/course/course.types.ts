@@ -11,8 +11,8 @@ export interface CourseWithRelations extends Course {
 export interface CourseDetail extends Course {
     lectures?: Lecture[];
     enrollmentCount?: number;
-    reviewCount?: number;
-    avgRating?: number;
+    reviewCount: number;
+    avgRating: number | null;
     isEnrolled?: boolean;
 }
 
@@ -56,7 +56,7 @@ export interface CreateCourseInput {
     subject: Subject;
     grade: Grade;
     level?: CourseLevel;
-    duration: number;
+    duration?: number; // Optional - Auto-calculated from lectures
     isPublished?: boolean;
     isFree?: boolean;
     order?: number;
@@ -96,5 +96,38 @@ export interface CourseEnrollmentInfo {
     completedAt?: Date | null;
     progress?: number;
     lastAccessAt?: Date;
+}
+
+// Admin course list item (for admin dashboard)
+export interface AdminCourseListItem {
+    id: string;
+    title: string;
+    slug: string;
+    description: string | null;
+    thumbnail: string | null;
+    subject: Subject;
+    grade: Grade;
+    level: CourseLevel;
+    duration: number;
+    isPublished: boolean;
+    isFree: boolean;
+    order: number;
+    avgRating: number | null;
+    reviewCount: number;
+    lectureCount: number;
+    enrollmentCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Admin courses list response
+export interface AdminCoursesListResponse {
+    courses: AdminCourseListItem[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
 }
 
