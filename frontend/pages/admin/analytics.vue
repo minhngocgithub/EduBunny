@@ -109,40 +109,142 @@
 </template>
 
 <script setup lang="ts">
+import { API_ENDPOINTS } from '~/types/api';
+
 definePageMeta({
   layout: 'admin',
   middleware: ['auth', 'admin'],
 });
 
+const { apiClient } = useApiClient();
+const { showToast } = useToast();
+
 const timeRange = ref('30');
+const loading = ref(true);
 
 const keyMetrics = ref([
-  { label: 'Người dùng hoạt động', value: '2,450', trend: 12, icon: 'trending_up', bgColor: 'bg-primary/10 text-primary' },
-  { label: 'Thời gian học TB', value: '45 phút', trend: 8, icon: 'schedule', bgColor: 'bg-secondary/10 text-secondary' },
-  { label: 'Tỷ lệ hoàn thành', value: '78%', trend: 5, icon: 'task_alt', bgColor: 'bg-success/10 text-success' },
-  { label: 'Điểm TB', value: '8.5', trend: -2, icon: 'star', bgColor: 'bg-warning/10 text-warning' },
+  { label: 'Người dùng hoạt động', value: '...', trend: 0, icon: 'trending_up', bgColor: 'bg-primary/10 text-primary' },
+  { label: 'Thời gian học TB', value: '...', trend: 0, icon: 'schedule', bgColor: 'bg-secondary/10 text-secondary' },
+  { label: 'Tỷ lệ hoàn thành', value: '...', trend: 0, icon: 'task_alt', bgColor: 'bg-success/10 text-success' },
+  { label: 'Điểm TB', value: '...', trend: 0, icon: 'star', bgColor: 'bg-warning/10 text-warning' },
 ]);
 
-const engagementData = ref([
-  { label: 'Đăng nhập hàng ngày', value: '85%', percentage: 85, color: 'bg-primary' },
-  { label: 'Hoàn thành bài tập', value: '72%', percentage: 72, color: 'bg-secondary' },
-  { label: 'Tham gia quiz', value: '68%', percentage: 68, color: 'bg-accent' },
-  { label: 'Chơi game học tập', value: '91%', percentage: 91, color: 'bg-success' },
-]);
+const engagementData = ref<Array<{ label: string; value: string; percentage: number; color: string }>>([]);
+const popularContent = ref<Array<{ title: string; type: string; views: number; completionRate: number }>>([]);
+const subjectProgress = ref<Array<{ name: string; percentage: number; students: number; color: string }>>([]);
 
-const popularContent = ref([
-  { title: 'Giải đố Phân số', type: 'Khóa học', views: 12400, completionRate: 92 },
-  { title: 'Hệ Mặt Trời', type: 'Bài giảng', views: 8560, completionRate: 87 },
-  { title: 'Săn Số học', type: 'Trò chơi', views: 15200, completionRate: 95 },
-  { title: 'Toán học - Phép nhân', type: 'Quiz', views: 7800, completionRate: 84 },
-]);
+// Fetch analytics data
+const fetchAnalytics = async () => {
+  loading.value = true;
+  try {
+    const response = await apiClient.get<{
+      activeUsers: number;
+      avgSessionTime: number;
+      completionRate: number;
+      engagementData: Array<{ label: string; value: string; percentage: number }>;
+    }>(API_ENDPOINTS.ADMIN.ANALYTICS.OVERVIEW, {
+      timeRange: parseInt(timeRange.value),
+    });
 
-const subjectProgress = ref([
-  { name: 'Toán học', percentage: 85, students: 1240, color: 'text-primary' },
-  { name: 'Tiếng Việt', percentage: 78, students: 950, color: 'text-secondary' },
-  { name: 'Tiếng Anh', percentage: 72, students: 880, color: 'text-accent' },
-  { name: 'Khoa học', percentage: 81, students: 760, color: 'text-success' },
-]);
+    if (response.success && response.data) {
+      const data = response.data;
+      
+      keyMetrics.value = [
+        { 
+          label: 'Người dùng hoạt động', 
+          value: data.activeUsers.toLocaleString(), 
+          trend: 12, 
+          icon: 'trending_up', 
+          bgColor: 'bg-primary/10 text-primary' 
+        },
+        { 
+          label: 'Thời gian học TB', 
+          value: `${data.avgSessionTime} phút`, 
+          trend: 8, 
+          icon: 'schedule', 
+          bgColor: 'bg-secondary/10 text-secondary' 
+        },
+        { 
+          label: 'Tỷ lệ hoàn thành', 
+          value: `${data.completionRate}%`, 
+          trend: 5, 
+          icon: 'task_alt', 
+          bgColor: 'bg-success/10 text-success' 
+        },
+        { 
+          label: 'Mức độ tương tác', 
+          value: '85%', 
+          trend: 3, 
+          icon: 'star', 
+          bgColor: 'bg-warning/10 text-warning' 
+        },
+      ];
+
+      // Engagement data
+      const colors = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-success'];
+      engagementData.value = data.engagementData.map((item, index: number) => ({
+        ...item,
+        color: colors[index % colors.length],
+      }));
+    }
+  } catch (error: unknown) {
+    showToast({ type: 'error', message: 'Không thể tải dữ liệu phân tích' });
+  } finally {
+    loading.value = false;
+  }
+};
+
+const fetchPopularContent = async () => {
+  try {
+    const response = await apiClient.get<Array<{ title: string; type: string; views: number; completionRate: number }>>(
+      API_ENDPOINTS.ADMIN.ANALYTICS.POPULAR_CONTENT, 
+      { limit: 4 }
+    );
+
+    if (response.success && response.data) {
+      popularContent.value = response.data;
+    }
+  } catch (error: unknown) {
+    console.error('Failed to fetch popular content:', error);
+  }
+};
+
+const fetchSubjectProgress = async () => {
+  try {
+    const response = await apiClient.get<Array<{ name: string; percentage: number; students: number }>>(
+      API_ENDPOINTS.ADMIN.ANALYTICS.SUBJECT_PROGRESS
+    );
+
+    if (response.success && response.data) {
+      const colors = ['text-primary', 'text-secondary', 'text-accent', 'text-success'];
+      subjectProgress.value = response.data.slice(0, 4).map((item, index: number) => ({
+        ...item,
+        color: colors[index % colors.length],
+      }));
+    }
+  } catch (error: unknown) {
+    console.error('Failed to fetch subject progress:', error);
+  }
+};
+
+// Load all analytics data
+const loadAnalytics = async () => {
+  await Promise.all([
+    fetchAnalytics(),
+    fetchPopularContent(),
+    fetchSubjectProgress(),
+  ]);
+};
+
+// Watch time range changes
+watch(timeRange, () => {
+  fetchAnalytics();
+});
+
+// Initial load
+onMounted(() => {
+  loadAnalytics();
+});
 
 useHead({
   title: 'Phân tích - Admin',

@@ -70,5 +70,47 @@ export const API_ENDPOINTS = {
       CHILDREN_PROGRESS: '/users/parent/children-progress',
     },
     LEADERBOARD: '/users/leaderboard',
+    ADMIN: {
+      LIST: '/users',
+      DETAIL: (id: string) => `/users/${id}`,
+      TOGGLE_ACTIVE: (id: string) => `/users/${id}/toggle-active`,
+      CHANGE_ROLE: (id: string) => `/users/${id}/change-role`,
+      DELETE: (id: string) => `/users/${id}`,
+    },
+  },
+  // Course
+  COURSE: {
+    LIST: '/courses',
+    DETAIL: (id: string) => `/courses/${id}`,
+    ADMIN: {
+      LIST: '/courses/admin/all',
+    },
+  },
+  // Lecture
+  LECTURE: {
+    LIST_BY_COURSE: (courseId: string) => `/lectures/courses/${courseId}/lectures`,
+    DETAIL: (id: string) => `/lectures/${id}`,
+    CREATE: '/lectures',
+    UPDATE: (id: string) => `/lectures/${id}`,
+    DELETE: (id: string) => `/lectures/${id}`,
+  },
+  // YouTube
+  YOUTUBE: {
+    VIDEO_INFO: '/youtube/video-info',
+  },
+  // Admin
+  ADMIN: {
+    DASHBOARD: {
+      STATS: '/admin/dashboard/stats',
+      USER_GROWTH: '/admin/dashboard/user-growth',
+      SUBJECT_DISTRIBUTION: '/admin/dashboard/subject-distribution',
+      RECENT_ACTIVITIES: '/admin/dashboard/recent-activities',
+      TOP_COURSES: '/admin/dashboard/top-courses',
+    },
+    ANALYTICS: {
+      OVERVIEW: '/admin/analytics',
+      POPULAR_CONTENT: '/admin/analytics/popular-content',
+      SUBJECT_PROGRESS: '/admin/analytics/subject-progress',
+    },
   },
 } as const

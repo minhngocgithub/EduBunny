@@ -3,7 +3,7 @@
     <!-- Navigation -->
     <LayoutAppNavbar />
 
-    <div class="container px-4 py-8 mx-auto pt-24">
+    <div class="container px-4 py-8 pt-24 mx-auto">
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="text-center">
@@ -31,7 +31,7 @@
         <!-- Profile Card -->
         <div class="p-8 bg-white border border-white shadow-xl dark:bg-slate-900 dark:border-white/5 rounded-3xl">
           <!-- Avatar & Basic Info -->
-          <div class="flex flex-col md:flex-row md:items-center gap-6 pb-6 mb-6 border-b dark:border-slate-700">
+          <div class="flex flex-col gap-6 pb-6 mb-6 border-b md:flex-row md:items-center dark:border-slate-700">
             <div class="relative flex-shrink-0">
               <CommonAppAvatar :avatar-seed="editForm.avatarSeed || userStore.studentProfile?.avatarSeed"
                 :avatar-url="editForm.avatar || userAvatar" :user-name="userName" size="2xl" rounded="full"
@@ -45,10 +45,10 @@
 
             <div class="flex-1">
               <div v-if="!isEditing">
-                <h2 class="text-3xl font-bold text-gray-900 dark:text-white font-display mb-2">
+                <h2 class="mb-2 text-3xl font-bold text-gray-900 dark:text-white font-display">
                   {{ userName }}
                 </h2>
-                <p class="text-gray-600 dark:text-slate-400 mb-4">{{ userEmail }}</p>
+                <p class="mb-4 text-gray-600 dark:text-slate-400">{{ userEmail }}</p>
                 <div class="flex flex-wrap gap-2">
                   <span
                     class="px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900/30 dark:text-blue-300">
@@ -67,7 +67,7 @@
 
               <!-- Edit Mode -->
               <div v-else class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <label class="block mb-1 text-sm font-semibold text-gray-700 dark:text-slate-300">
                       Email
@@ -88,7 +88,7 @@
                     </select>
                   </div>
                 </div>
-                <div v-if="isStudent" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div v-if="isStudent" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <label class="block mb-1 text-sm font-semibold text-gray-700 dark:text-slate-300">
                       Họ
@@ -116,7 +116,7 @@
                     Giới thiệu
                   </label>
                   <textarea v-model="editForm.bio" rows="3" maxlength="500" placeholder="Giới thiệu về bản thân..."
-                    class="w-full p-3 border border-gray-300 rounded-xl dark:bg-slate-800 dark:border-slate-600 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"></textarea>
+                    class="w-full p-3 border border-gray-300 resize-none rounded-xl dark:bg-slate-800 dark:border-slate-600 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
                   <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">
                     {{ (editForm.bio || '').length }}/500 ký tự
                   </p>
@@ -126,7 +126,7 @@
           </div>
 
           <!-- Stats Grid -->
-          <div v-if="!isEditing" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div v-if="!isEditing" class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div
               class="p-4 text-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl">
               <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ formatNumber(studentXP) }}</p>
@@ -168,14 +168,14 @@
           <h3 class="mb-6 text-xl font-bold text-gray-900 dark:text-white font-display">
             🎯 Sở thích học tập
           </h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
               <label class="block mb-2 text-sm font-semibold text-gray-700 dark:text-slate-300">
                 Môn học yêu thích
               </label>
               <div class="flex flex-wrap gap-2">
                 <span v-for="subject in ['MATH', 'VIETNAMESE', 'ENGLISH', 'SCIENCE']" :key="subject"
-                  class="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-700 rounded-full dark:bg-slate-800 dark:text-slate-300">
+                  class="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 rounded-full dark:bg-slate-800 dark:text-slate-300">
                   {{ formatSubject(subject) }}
                 </span>
               </div>
@@ -185,7 +185,7 @@
                 Thời gian học ưa thích
               </label>
               <span
-                class="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-xl dark:bg-slate-800 dark:text-slate-300">
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl dark:bg-slate-800 dark:text-slate-300">
                 Buổi sáng
               </span>
             </div>
@@ -198,7 +198,7 @@
           <h3 class="mb-6 text-xl font-bold text-gray-900 dark:text-white font-display">
             🏆 Thành tích
           </h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div v-for="achievement in achievements" :key="achievement.id"
               class="p-4 text-center transition-all bg-gray-50 dark:bg-slate-800 rounded-2xl hover:scale-105 hover:shadow-lg">
               <div class="mb-2 text-5xl">{{ achievement.icon }}</div>
@@ -208,9 +208,9 @@
           </div>
           <div class="mt-4 text-center">
             <NuxtLink to="/profile/achievements"
-              class="inline-flex items-center gap-2 px-6 py-2 font-bold text-primary hover:underline transition-colors">
+              class="inline-flex items-center gap-2 px-6 py-2 font-bold transition-colors text-primary hover:underline">
               <span>Xem tất cả thành tích</span>
-              <span class="material-symbols-outlined text-sm">arrow_forward</span>
+              <span class="text-sm material-symbols-outlined">arrow_forward</span>
             </NuxtLink>
           </div>
         </div>
@@ -241,8 +241,8 @@
                 <p class="font-semibold text-gray-900 dark:text-white">Thông báo email</p>
                 <p class="text-sm text-gray-500 dark:text-slate-400">Nhận email về tiến độ học tập</p>
               </div>
-              <button class="relative w-14 h-7 bg-blue-600 rounded-full">
-                <span class="absolute w-5 h-5 bg-white rounded-full right-1 top-1 shadow-md"></span>
+              <button class="relative bg-blue-600 rounded-full w-14 h-7">
+                <span class="absolute w-5 h-5 bg-white rounded-full shadow-md right-1 top-1"></span>
               </button>
             </div>
             <div class="flex items-center justify-between py-3">
@@ -250,15 +250,15 @@
                 <p class="font-semibold text-gray-900 dark:text-white">Âm thanh</p>
                 <p class="text-sm text-gray-500 dark:text-slate-400">Hiệu ứng âm thanh</p>
               </div>
-              <button class="relative w-14 h-7 bg-blue-600 rounded-full">
-                <span class="absolute w-5 h-5 bg-white rounded-full right-1 top-1 shadow-md"></span>
+              <button class="relative bg-blue-600 rounded-full w-14 h-7">
+                <span class="absolute w-5 h-5 bg-white rounded-full shadow-md right-1 top-1"></span>
               </button>
             </div>
           </div>
         </div>
 
         <!-- Danger Zone -->
-        <div class="p-8 bg-red-50 border-2 border-red-200 dark:bg-red-900/10 dark:border-red-800 rounded-3xl">
+        <div class="p-8 border-2 border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-800 rounded-3xl">
           <h3 class="mb-4 text-xl font-bold text-red-600 dark:text-red-400 font-display">
             ⚠️ Vùng nguy hiểm
           </h3>
