@@ -1,4 +1,4 @@
-import { PrismaClient, Course, CourseLevel } from '@prisma/client';
+import { PrismaClient, Course, Subject, Grade, CourseLevel } from '@prisma/client';
 import { CreateCourseInput, UpdateCourseInput, CourseFilters, CourseListItem, CourseDetail } from './course.types';
 import { createSlug } from './course.dto';
 import { Prisma } from '@prisma/client';
