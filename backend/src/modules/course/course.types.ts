@@ -1,20 +1,19 @@
 import { Subject, Grade, CourseLevel, Course, Lecture, Enrollment, CourseReview } from '@prisma/client';
 
 // Course with relations
-export interface CourseWithRelations extends Course {
+export type CourseWithRelations = Course & {
     lectures?: Lecture[];
     enrollments?: Enrollment[];
     reviews?: CourseReview[];
-}
+};
 
 // Course detail response
-export interface CourseDetail extends Course {
+export type CourseDetail = Course & {
     lectures?: Lecture[];
     enrollmentCount?: number;
     reviewCount?: number;
-    avgRating?: number;
     isEnrolled?: boolean;
-}
+};
 
 // Course list item (summary)
 export interface CourseListItem {

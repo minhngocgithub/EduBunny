@@ -1,4 +1,4 @@
-import { PrismaClient, Course, Subject, Grade, CourseLevel } from '@prisma/client';
+import { PrismaClient, Course, CourseLevel } from '@prisma/client';
 import { CreateCourseInput, UpdateCourseInput, CourseFilters, CourseListItem, CourseDetail } from './course.types';
 import { createSlug } from './course.dto';
 import { Prisma } from '@prisma/client';
@@ -48,8 +48,8 @@ export class CourseService {
 
         if (search) {
             where.OR = [
-                { title: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
+                { title: { contains: search } },
+                { description: { contains: search } },
             ];
         }
 
@@ -233,7 +233,12 @@ export class CourseService {
                 isPublished: input.isPublished ?? false,
                 isFree: input.isFree ?? true,
                 order: input.order || 0,
-                metadata: input.metadata || null,
+                ...(input.metadata !== undefined && {
+                    metadata:
+                        input.metadata === null
+                            ? Prisma.JsonNull
+                            : (input.metadata as Prisma.InputJsonValue),
+                }),
             },
         });
 
@@ -278,7 +283,12 @@ export class CourseService {
                 ...(input.isPublished !== undefined && { isPublished: input.isPublished }),
                 ...(input.isFree !== undefined && { isFree: input.isFree }),
                 ...(input.order !== undefined && { order: input.order }),
-                ...(input.metadata !== undefined && { metadata: input.metadata }),
+                ...(input.metadata !== undefined && {
+                    metadata:
+                        input.metadata === null
+                            ? Prisma.JsonNull
+                            : (input.metadata as Prisma.InputJsonValue),
+                }),
             },
         });
 
