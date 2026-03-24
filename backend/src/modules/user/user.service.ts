@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import {
   UserProfile,
@@ -466,7 +466,7 @@ export class UserService {
   async getLeaderboard(filters: LeaderboardFilters): Promise<LeaderboardEntry[]> {
     const { grade, timeframe = 'all-time', metric = 'xp', limit = 10 } = filters;
 
-    let dateFilter = undefined;
+    let dateFilter: { gte: Date } | undefined = undefined;
     if (timeframe === 'weekly') {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
@@ -478,12 +478,23 @@ export class UserService {
     }
 
     // Base query for students
-    const whereClause: any = {
+    const whereClause: Prisma.StudentWhereInput = {
       ...(grade && { grade }),
       ...(dateFilter && { lastActiveDate: dateFilter }),
     };
 
-    let students: any[] = [];
+    let students: Array<{
+      id: string;
+      firstName: string;
+      lastName: string;
+      avatar: string | null;
+      xp: number;
+      level: number;
+      stars: number;
+      streak: number;
+      achievementCount?: number;
+      achievements?: Array<{ id: string }>;
+    }> = [];
 
     switch (metric) {
       case 'xp':
@@ -543,7 +554,7 @@ export class UserService {
         });
         break;
 
-      case 'achievements':
+      case 'achievements': {
         // Thợ Săn Danh Hiệu - Most achievements
         const studentsWithAchievements = await prisma.student.findMany({
           where: whereClause,
@@ -575,6 +586,7 @@ export class UserService {
           })
           .slice(0, limit);
         break;
+      }
     }
 
     return students.map((student, index) => {
@@ -641,6 +653,235 @@ export class UserService {
         isActive: false,
       },
     });
+  }
+
+  // ==================== Admin Methods ====================
+
+  async getAllUsers(filters: {
+    search?: string;
+    role?: string;
+    isActive?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    users: Array<{
+      id: string;
+      email: string;
+      role: string;
+      isActive: boolean;
+      emailVerified: boolean;
+      lastLoginAt: Date | null;
+      createdAt: Date;
+      student: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatar: string | null;
+        avatarSeed: string | null;
+        grade: string;
+        level: number;
+        xp: number;
+        stars: number;
+      } | null;
+      parent: {
+        id: string;
+        firstName: string;
+        lastName: string;
+      } | null;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const { search, role, isActive, page = 1, limit = 20 } = filters;
+
+    // Build where clause
+    const where: Prisma.UserWhereInput = {
+      deletedAt: null, // Exclude soft-deleted users
+    };
+
+    if (search) {
+      where.OR = [
+        { email: { contains: search } },
+        {
+          student: {
+            OR: [
+              { firstName: { contains: search } },
+              { lastName: { contains: search } },
+            ],
+          },
+        },
+        {
+          parent: {
+            OR: [
+              { firstName: { contains: search } },
+              { lastName: { contains: search } },
+            ],
+          },
+        },
+      ];
+    }
+
+    if (role) {
+      where.role = role as Prisma.EnumUserRoleFilter | undefined;
+    }
+
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    // Get total count
+    const total = await prisma.user.count({ where });
+
+    // Get users with pagination
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+        emailVerified: true,
+        lastLoginAt: true,
+        createdAt: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            avatarSeed: true,
+            grade: true,
+            level: true,
+            xp: true,
+            stars: true,
+          },
+        },
+        parent: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getUserById(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        student: {
+          include: {
+            parent: true,
+          },
+        },
+        parent: {
+          include: {
+            children: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return user;
+  }
+
+  async toggleUserActive(userId: string, isActive: boolean) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { isActive },
+      include: {
+        student: true,
+        parent: true,
+      },
+    });
+
+    return updatedUser;
+  }
+
+  async changeUserRole(userId: string, role: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Cannot change role of admin users (for safety)
+    if (user.role === 'ADMIN') {
+      throw new Error('Cannot change role of admin users');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: role as UserRole },
+      include: {
+        student: true,
+        parent: true,
+      },
+    });
+
+    return updatedUser;
+  }
+
+  async adminDeleteUser(userId: string, _reason?: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Cannot delete admin users (for safety)
+    if (user.role === 'ADMIN') {
+      throw new Error('Cannot delete admin users');
+    }
+
+    // Soft delete: mark as deleted
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+      },
+    });
+
   }
 
   // ==================== Helper Methods ====================

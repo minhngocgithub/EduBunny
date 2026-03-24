@@ -337,15 +337,15 @@ const userStore = useUserStore();
 const loading = ref(true);
 const stats = ref<any>(null);
 
-// Computed properties
+// Computed properties - Match Navbar exactly
 const userName = computed(() => {
   if (userStore.studentProfile) {
     return `${userStore.studentProfile.firstName} ${userStore.studentProfile.lastName}`;
   }
-  if (userStore.profile) {
+  if (userStore.profile?.email) {
     return userStore.profile.email.split('@')[0];
   }
-  return 'Bạn';
+  return 'User';
 });
 
 const studentLevel = computed(() => userStore.studentProfile?.level || 1);

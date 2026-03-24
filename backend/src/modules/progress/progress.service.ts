@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ActivityType } from '@prisma/client';
 import {
     ProgressSummary,
     CourseProgressSummary,
@@ -6,7 +6,9 @@ import {
     TrackViewingInput,
 } from './progress.types';
 import { rewardService } from '../reward/reward.service';
-import { RewardCategory } from '@prisma/client';
+import { RewardTrigger } from '../reward/reward.types';
+import { monitoringService } from '../monitoring/monitoring.service';
+import { achievementCacheService } from '../achievement/achievement-cache.service';
 
 const prisma = new PrismaClient();
 
@@ -234,18 +236,16 @@ export class ProgressService {
         // Grant rewards if just completed
         if (isCompleted && !wasAlreadyCompleted) {
             try {
-                await rewardService.grantReward({
-                    studentId,
-                    category: RewardCategory.LESSON_COMPLETE,
-                    metadata: {
-                        lectureId,
-                        courseId: lecture.courseId,
-                    },
+                await rewardService.grantByTrigger(studentId, RewardTrigger.LECTURE_COMPLETE, {
+                    lectureId,
+                    courseId: lecture.courseId,
                 });
             } catch (error) {
                 console.error('Failed to grant lesson completion reward:', error);
             }
         }
+
+        await achievementCacheService.invalidateProgress(studentId);
 
         // Update enrollment progress
         await this.updateEnrollmentProgress(studentId, lecture.courseId);
@@ -331,18 +331,16 @@ export class ProgressService {
         // Grant rewards if just completed
         if (!wasAlreadyCompleted) {
             try {
-                await rewardService.grantReward({
-                    studentId,
-                    category: RewardCategory.LESSON_COMPLETE,
-                    metadata: {
-                        lectureId,
-                        courseId: lecture.courseId,
-                    },
+                await rewardService.grantByTrigger(studentId, RewardTrigger.LECTURE_COMPLETE, {
+                    lectureId,
+                    courseId: lecture.courseId,
                 });
             } catch (error) {
                 console.error('Failed to grant lesson completion reward:', error);
             }
         }
+
+        await achievementCacheService.invalidateProgress(studentId);
 
         // Update enrollment progress
         await this.updateEnrollmentProgress(studentId, lecture.courseId);

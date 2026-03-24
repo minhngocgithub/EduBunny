@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { courseService } from './course.service';
-import { CreateCourseDTO, UpdateCourseDTO, CourseQueryDTO } from './course.dto';
+import { CreateCourseDTO, UpdateCourseDTO, CourseQueryDTO, AdminListCoursesQueryDTO } from './course.dto';
 import { successResponse, paginatedResponse } from '@/shared/utils/response.utils';
 
 export class CourseController {
@@ -129,6 +129,25 @@ export class CourseController {
                 limit: result.limit,
                 total: result.total,
                 message: 'Course reviews retrieved successfully',
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getAllCoursesForAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const query = req.query as unknown as AdminListCoursesQueryDTO
+
+            const result = await courseService.getAllCoursesForAdmin(query);
+
+            res.json({
+                success: true,
+                data: {
+                    courses: result.courses,
+                    pagination: result.pagination,
+                },
+                message: 'Courses retrieved successfully',
             });
         } catch (error) {
             next(error);

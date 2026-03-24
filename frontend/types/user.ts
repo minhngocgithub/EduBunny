@@ -77,3 +77,47 @@ export interface UserStats {
     stars: number;
     achievements: number;
 }
+// Admin Types
+export interface AdminUserListItem {
+    id: string;
+    email: string;
+    role: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT';
+    isActive: boolean;
+    emailVerified: boolean;
+    lastLoginAt: string | null;
+    createdAt: string;
+    student?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatar: string | null;
+        avatarSeed: string | null;
+        grade: string;
+        level: number;
+        xp: number;
+        stars: number;
+    } | null;
+    parent?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+}
+
+export interface AdminUsersListResponse {
+    users: AdminUserListItem[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
+
+export interface AdminUsersQueryParams {
+    search?: string;
+    role?: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT';
+    isActive?: boolean;
+    page?: number;
+    limit?: number;
+}

@@ -24,11 +24,20 @@
             <!-- Right Side Actions -->
             <div class="flex items-center gap-4">
                 <!-- Theme Toggle -->
-                <button @click="toggleTheme"
-                    class="flex items-center justify-center transition-transform size-10 rounded-xl bg-white/50 dark:bg-slate-800 hover:scale-110"
-                    :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
-                    <span class="text-xl material-symbols-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
-                </button>
+                <ClientOnly>
+                    <button @click="toggleTheme"
+                        class="flex items-center justify-center transition-transform size-10 rounded-xl bg-white/50 dark:bg-slate-800 hover:scale-110"
+                        :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
+                        <span class="text-xl material-symbols-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
+                    </button>
+                    <template #fallback>
+                        <button
+                            class="flex items-center justify-center transition-transform size-10 rounded-xl bg-white/50 dark:bg-slate-800 hover:scale-110"
+                            aria-label="Toggle theme">
+                            <span class="text-xl material-symbols-outlined">dark_mode</span>
+                        </button>
+                    </template>
+                </ClientOnly>
 
                 <!-- Authenticated User Actions -->
                 <template v-if="isAuthenticated">
@@ -207,6 +216,9 @@ const userEmail = computed(() => userStore.profile?.email || '');
 const isStudent = computed(() => userStore.isStudent);
 const studentLevel = computed(() => userStore.studentProfile?.level || 1);
 const studentStars = computed(() => userStore.studentProfile?.stars || 0);
+const studentCoins = computed(() => userStore.studentProfile?.coins || 0);
+const studentXP = computed(() => userStore.studentProfile?.xp || 0);
+const studentStreak = computed(() => userStore.studentProfile?.streak || 0);
 
 // Navigation Links
 const navLinks = computed(() => {
