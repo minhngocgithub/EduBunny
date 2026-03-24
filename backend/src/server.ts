@@ -27,6 +27,7 @@ import achievementRoutes from './modules/achievement/achievement.routes';
 import youtubeRoutes from './modules/youtube/youtube.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import leaderboardRoutes from './modules/leaderboard/leaderboard.routes';
+import quizRoutes from './modules/quiz/quiz.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -68,6 +69,7 @@ app.use(`${API}`, achievementRoutes);
 app.use(`${API}/youtube`, youtubeRoutes);
 app.use(`${API}/admin`, adminRoutes);
 app.use(`${API}/leaderboard`, leaderboardRoutes);
+app.use(`${API}/quizzes`, quizRoutes);
 
 interface CustomError extends Error {
     status?: number;

@@ -512,7 +512,7 @@ onMounted(async () => {
 // Watch filters and reset page
 watch([selectedSubject, selectedGrade, searchQuery], () => {
   currentPage.value = 1;
-}
+});
 </script>
 
 <style scoped>

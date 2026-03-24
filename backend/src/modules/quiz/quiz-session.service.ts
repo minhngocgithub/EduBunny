@@ -11,7 +11,7 @@ interface QuizSession {
     expiresAt: string;
     answers: {
         questionId: string;
-        answerId: string;
+        answer: string;
         answeredAt: string;
     }[];
 }
@@ -82,7 +82,7 @@ class QuizSessionService {
     async saveAnswer(
         attemptId: string,
         questionId: string,
-        answerId: string
+        answer: string
     ): Promise<void> {
         const session = await this.getSession(attemptId);
         
@@ -95,12 +95,19 @@ class QuizSessionService {
             throw new Error('Quiz session has expired');
         }
 
-        // Add answer to session
-        session.answers.push({
+        // Upsert answer by questionId to avoid duplicate answer rows for same question.
+        const existingIndex = session.answers.findIndex((item) => item.questionId === questionId);
+        const value = {
             questionId,
-            answerId,
+            answer,
             answeredAt: new Date().toISOString(),
-        });
+        };
+
+        if (existingIndex >= 0) {
+            session.answers[existingIndex] = value;
+        } else {
+            session.answers.push(value);
+        }
 
         // Update session in Redis
         const sessionKey = this.getSessionKey(attemptId);
@@ -204,6 +211,13 @@ class QuizSessionService {
 
                 const stillExists = await this.getSession(attemptId);
                 if (stillExists) {
+                    try {
+                        const { quizService } = await import('./quiz.service');
+                        await quizService.gracefulTimeout(attemptId);
+                    } catch (error) {
+                        logger.error(`Failed to auto-submit timed out quiz: ${attemptId}`, error);
+                    }
+
                     websocketService.emitQuizTimeout(attemptId);
                     logger.warn(`Quiz timed out: attempt ${attemptId}`);
                 }
