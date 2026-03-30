@@ -103,6 +103,17 @@ jest.mock('@prisma/client', () => {
 
     return {
         PrismaClient: jest.fn(() => mockPrismaClient),
+        UserRole: {
+            ADMIN: 'ADMIN',
+            STUDENT: 'STUDENT',
+            PARENT: 'PARENT',
+        },
+        QuestionType: {
+            MULTIPLE_CHOICE: 'MULTIPLE_CHOICE',
+            TRUE_FALSE: 'TRUE_FALSE',
+            FILL_BLANK: 'FILL_BLANK',
+            SHORT_ANSWER: 'SHORT_ANSWER',
+        },
     };
 });
 
