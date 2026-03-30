@@ -48,8 +48,8 @@ export class CourseService {
 
         if (search) {
             where.OR = [
-                { title: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
+                { title: { contains: search } },
+                { description: { contains: search } },
             ];
         }
 
@@ -211,9 +211,12 @@ export class CourseService {
         // Generate slug if not provided
         const slug = input.slug || createSlug(input.title);
 
-        // Check if slug already exists
-        const existingCourse = await prisma.course.findUnique({
-            where: { slug },
+        // Check if slug already exists (only for non-deleted courses)
+        const existingCourse = await prisma.course.findFirst({
+            where: {
+                slug,
+                deletedAt: null, // Allow reusing slug from deleted courses
+            },
         });
 
         if (existingCourse) {
@@ -229,13 +232,14 @@ export class CourseService {
                 subject: input.subject,
                 grade: input.grade,
                 level: input.level || CourseLevel.BEGINNER,
-                duration: input.duration,
+                duration: 0, // Will be auto-calculated from lectures
                 isPublished: input.isPublished ?? false,
                 isFree: input.isFree ?? true,
                 order: input.order || 0,
-                metadata: input.metadata || null,
+                metadata: input.metadata ? (input.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
             },
         });
+
 
         return course;
     }
@@ -255,8 +259,11 @@ export class CourseService {
 
         // Check slug uniqueness if slug is being updated
         if (input.slug && input.slug !== existingCourse.slug) {
-            const slugExists = await prisma.course.findUnique({
-                where: { slug: input.slug },
+            const slugExists = await prisma.course.findFirst({
+                where: {
+                    slug: input.slug,
+                    deletedAt: null, // Allow reusing slug from deleted courses
+                },
             });
 
             if (slugExists) {
@@ -274,13 +281,14 @@ export class CourseService {
                 ...(input.subject && { subject: input.subject }),
                 ...(input.grade && { grade: input.grade }),
                 ...(input.level && { level: input.level }),
-                ...(input.duration !== undefined && { duration: input.duration }),
+                // duration is auto-calculated from lectures, ignore manual input
                 ...(input.isPublished !== undefined && { isPublished: input.isPublished }),
                 ...(input.isFree !== undefined && { isFree: input.isFree }),
                 ...(input.order !== undefined && { order: input.order }),
-                ...(input.metadata !== undefined && { metadata: input.metadata }),
+                ...(input.metadata !== undefined && { metadata: input.metadata === null ? Prisma.JsonNull : (input.metadata as Prisma.InputJsonValue) }),
             },
         });
+
 
         return course;
     }
@@ -297,14 +305,19 @@ export class CourseService {
             throw new Error('Course not found');
         }
 
-        // Soft delete
+        // Soft delete: append timestamp to slug to free it up for reuse
+        const timestamp = Date.now();
+        const deletedSlug = `${course.slug}-deleted-${timestamp}`;
+
         await prisma.course.update({
             where: { id },
             data: {
+                slug: deletedSlug, // Free up the original slug
                 deletedAt: new Date(),
                 isPublished: false, // Unpublish when deleting
             },
         });
+
     }
 
     async getCourseReviews(courseId: string, page: number = 1, limit: number = 10) {
@@ -352,6 +365,149 @@ export class CourseService {
             page,
             limit,
             totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    // ==================== Admin Methods ====================
+
+    async getAllCoursesForAdmin(filters: {
+        search?: string;
+        subject?: Subject;
+        grade?: Grade;
+        level?: CourseLevel;
+        isPublished?: boolean;
+        isFree?: boolean;
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        courses: Array<{
+            id: string;
+            title: string;
+            slug: string;
+            description: string | null;
+            thumbnail: string | null;
+            subject: Subject;
+            grade: Grade;
+            level: CourseLevel;
+            duration: number;
+            isPublished: boolean;
+            isFree: boolean;
+            order: number;
+            avgRating: number | null;
+            reviewCount: number;
+            lectureCount: number;
+            enrollmentCount: number;
+            createdAt: Date;
+            updatedAt: Date;
+        }>;
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }> {
+        const { search, subject, grade, level, isPublished, isFree, page = 1, limit = 20 } = filters;
+
+        // Build where clause
+        const where: Prisma.CourseWhereInput = {
+            deletedAt: null, // Exclude soft-deleted courses
+        };
+
+        if (search) {
+            where.OR = [
+                { title: { contains: search } },
+                { description: { contains: search } },
+            ];
+        }
+
+        if (subject) {
+            where.subject = subject;
+        }
+
+        if (grade) {
+            where.grade = grade;
+        }
+
+        if (level) {
+            where.level = level;
+        }
+
+        if (isPublished !== undefined) {
+            where.isPublished = isPublished;
+        }
+
+        if (isFree !== undefined) {
+            where.isFree = isFree;
+        }
+
+        // Get total count
+        const total = await prisma.course.count({ where });
+
+        // Get courses with counts
+        const courses = await prisma.course.findMany({
+            where,
+            select: {
+                id: true,
+                title: true,
+                slug: true,
+                description: true,
+                thumbnail: true,
+                subject: true,
+                grade: true,
+                level: true,
+                duration: true,
+                isPublished: true,
+                isFree: true,
+                order: true,
+                avgRating: true,
+                reviewCount: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        lectures: true,
+                        enrollments: true,
+                    },
+                },
+            },
+            orderBy: [
+                { createdAt: 'desc' },
+            ],
+            skip: (page - 1) * limit,
+            take: limit,
+        });
+
+        // Map to response format
+        const coursesWithCounts = courses.map((course) => ({
+            id: course.id,
+            title: course.title,
+            slug: course.slug,
+            description: course.description,
+            thumbnail: course.thumbnail,
+            subject: course.subject,
+            grade: course.grade,
+            level: course.level,
+            duration: course.duration,
+            isPublished: course.isPublished,
+            isFree: course.isFree,
+            order: course.order,
+            avgRating: course.avgRating,
+            reviewCount: course.reviewCount,
+            lectureCount: course._count.lectures,
+            enrollmentCount: course._count.enrollments,
+            createdAt: course.createdAt,
+            updatedAt: course.updatedAt,
+        }));
+
+        return {
+            courses: coursesWithCounts,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
         };
     }
 }

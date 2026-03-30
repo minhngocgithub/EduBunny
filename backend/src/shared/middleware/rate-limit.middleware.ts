@@ -1,58 +1,126 @@
-import rateLimit from "express-rate-limit";
-import { errorResponse } from "../utils/response.utils";
-import { Request, Response, NextFunction } from "express";
+import { RateLimiterRedis } from 'rate-limiter-flexible';
+import { Request, Response, NextFunction } from 'express';
+import { redisService } from '../services/redis.service';
+import { errorResponse } from '../utils/response.utils';
+import { logger } from '../utils/logger.utils';
 
 interface RateLimitOptions {
-    maxRequests?: number;
-    windowMs?: number;
-    message?: string;
+    points?: number; // Number of requests allowed
+    duration?: number; // Time window in seconds
+    blockDuration?: number; // Block duration in seconds after limit exceeded
+    keyPrefix?: string; // Prefix for Redis keys
 }
 
+/**
+ * Middleware factory for rate limiting
+ * Uses Redis to track request counts per IP address
+ */
 export function rateLimitMiddleware(options: RateLimitOptions = {}) {
-    const {
-        maxRequests = 100,
-        windowMs = 15 * 60 * 1000, // 15 minutes
-        message = 'Too many requests from this IP, please try again later.',
-    } = options;
-    return rateLimit({
-        windowMs,
-        max: maxRequests,
-        standardHeaders: true,
-        legacyHeaders: false,
-        handler: (_req: Request, res: Response, _next: NextFunction) => {
-            return errorResponse(
-                res,
-                { message },
-                429
-            );
+    let limiter: RateLimiterRedis | null = null;
+
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            // Lazy initialization - create limiter on first request
+            if (!limiter) {
+                if (!redisService.isReady()) {
+                    logger.warn('Redis not ready, skipping rate limiting');
+                    return next();
+                }
+
+                const {
+                    points = 100,
+                    duration = 60,
+                    blockDuration = 0,
+                    keyPrefix = 'rate_limit',
+                } = options;
+
+                limiter = new RateLimiterRedis({
+                    storeClient: redisService.getClient(),
+                    keyPrefix,
+                    points,
+                    duration,
+                    blockDuration,
+                });
+            }
+
+            // Use IP address as the key
+            const key = req.ip || req.connection.remoteAddress || 'unknown';
+
+            // Consume 1 point
+            await limiter.consume(key);
+
+            // Request allowed, continue
+            next();
+            return;
+        } catch (error: unknown) {
+            // Rate limit exceeded
+            if (
+                typeof error === 'object' &&
+                error !== null &&
+                'msBeforeNext' in error &&
+                typeof (error as { msBeforeNext: unknown }).msBeforeNext === 'number'
+            ) {
+                const msBeforeNext = (error as { msBeforeNext: number }).msBeforeNext;
+                const retryAfter = Math.ceil(msBeforeNext / 1000);
+
+                res.setHeader('Retry-After', String(retryAfter));
+                res.setHeader('X-RateLimit-Limit', String(options.points || 100));
+                res.setHeader('X-RateLimit-Remaining', '0');
+                res.setHeader('X-RateLimit-Reset', String(Date.now() + msBeforeNext));
+
+                logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
+
+                errorResponse(
+                    res,
+                    { message: 'Too many requests, please try again later.' },
+                    429
+                );
+                return;
+            }
+
+            // Other errors, log and pass through
+            logger.error('Rate limiter error:', error);
+            next();
+            return;
         }
-    })
+    };
 }
-// API thông thường: 100 requests / 15 phút
+
+// API endpoints: 100 requests per minute
 export const apiLimiter = rateLimitMiddleware({
-    maxRequests: 100,
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    points: 100,
+    duration: 60,
+    keyPrefix: 'api_limit',
 });
 
+// Auth endpoints: 10 requests per 15 minutes
 export const authLimiter = rateLimitMiddleware({
-    maxRequests: 10,
-    windowMs: 15 * 60 * 1000, // 10 requests per 15 minutes
-    message: 'Too many authentication attempts, please try again later',
+    points: 10,
+    duration: 15 * 60,
+    blockDuration: 15 * 60,
+    keyPrefix: 'auth_limit',
 });
 
-export const passwordResetLimiter = rateLimitMiddleware({
-    maxRequests: 3,
-    windowMs: 60 * 60 * 1000, // 3 requests per hour
-    message: 'Too many password reset attempts, please try again later',
-});
+// Register endpoint: 5 requests per hour
 export const registerLimiter = rateLimitMiddleware({
-  maxRequests: 5, // Chỉ cho phép 5 lần đăng ký / IP / giờ
-  windowMs: 60 * 60 * 1000, // 1 giờ
-  message: 'Too many registration attempts, please try again later',
+    points: 5,
+    duration: 60 * 60,
+    blockDuration: 60 * 60,
+    keyPrefix: 'register_limit',
 });
-//Rate limit nghiêm ngặt hơn cho các endpoint nhạy cảm
+
+// Password reset: 3 requests per hour
+export const passwordResetLimiter = rateLimitMiddleware({
+    points: 3,
+    duration: 60 * 60,
+    blockDuration: 60 * 60,
+    keyPrefix: 'pwd_reset_limit',
+});
+
+// Strict limiter for sensitive endpoints: 20 requests per 5 minutes
 export const strictLimiter = rateLimitMiddleware({
-  maxRequests: 3,
-  windowMs: 5 * 60 * 1000, // 3 requests / 5 phút
-  message: 'Too many requests, please slow down',
+    points: 20,
+    duration: 5 * 60,
+    blockDuration: 5 * 60,
+    keyPrefix: 'strict_limit',
 });

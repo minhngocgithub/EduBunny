@@ -1,4 +1,4 @@
-import { Grade, Subject, Course, CourseLevel } from '@prisma/client';
+import { Grade, Course } from '@prisma/client';
 import { CourseRecommendation } from './recommendation.types';
 
 /**

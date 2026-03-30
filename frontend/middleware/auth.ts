@@ -6,6 +6,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
         const hasToken = localStorage.getItem('accessToken');
         const hasUser = localStorage.getItem('user');
 
+
         // If tokens exist in localStorage but not in store, initialize auth state
         if (hasToken && hasUser && hasToken !== 'undefined' && hasUser !== 'undefined') {
             authStore.initAuth();
@@ -28,11 +29,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
 
     if (requiresVerification.some((path) => to.path.startsWith(path))) {
         if (!authStore.user?.emailVerified) {
-            // You can redirect to verify-email page if needed
-            // return navigateTo('/verify-email');
+
         }
     }
-
-    // Optional: Role-based access control
-    // You can add more specific checks here based on the route
 });

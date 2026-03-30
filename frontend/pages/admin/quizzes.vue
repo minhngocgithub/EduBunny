@@ -110,17 +110,20 @@
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Độ khó</label>
-            <select v-model="newQuiz.difficulty" class="input w-full">
-              <option value="EASY">Dễ</option>
-              <option value="MEDIUM">Trung bình</option>
-              <option value="HARD">Khó</option>
+            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Khóa học</label>
+            <select v-model="newQuiz.courseId" class="input w-full">
+              <option value="">Chọn khóa học</option>
+              <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.title }}</option>
             </select>
           </div>
           <div>
             <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Thời gian (phút)</label>
             <input type="number" v-model="newQuiz.timeLimit" class="input w-full" placeholder="30" />
           </div>
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Điểm qua môn (%)</label>
+          <input type="number" v-model="newQuiz.passingScore" class="input w-full" placeholder="70" />
         </div>
       </div>
       <template #actions>
@@ -132,48 +135,138 @@
 </template>
 
 <script setup lang="ts">
+import { API_ENDPOINTS } from '~/types/api';
+
 definePageMeta({
   layout: 'admin',
   middleware: ['auth', 'admin'],
 });
 
-const showCreateQuizModal = ref(false);
+type AdminQuizItem = {
+  id: string;
+  title: string;
+  attempts: number;
+  questionCount: number;
+  avgScore: number;
+};
 
+type AdminCourseItem = {
+  id: string;
+  title: string;
+};
+
+const { apiClient } = useApiClient();
+const { toast } = useSweetAlert();
+
+const showCreateQuizModal = ref(false);
+const loading = ref(false);
+const courses = ref<AdminCourseItem[]>([]);
+
+// Placeholder data - Sẽ được thay thế bằng API call khi backend sẵn sàng
 const questionBank = ref([
   { label: 'Dễ (Grade 1-2)', count: 450, color: 'text-success' },
   { label: 'Trung bình (Grade 3-4)', count: 820, color: 'text-secondary' },
   { label: 'Khó (Grade 5)', count: 310, color: 'text-primary' },
 ]);
 
-const quizzes = ref([
-  { id: 1, title: 'Toán học - Phép nhân', avgScore: 84, attempts: 2400, questionCount: 15 },
-  { id: 2, title: 'Tiếng Việt - Từ vựng', avgScore: 92, attempts: 1850, questionCount: 20 },
-  { id: 3, title: 'English - Grammar', avgScore: 65, attempts: 3200, questionCount: 18 },
-  { id: 4, title: 'Khoa học - Động vật', avgScore: 78, attempts: 1200, questionCount: 12 },
-]);
+const quizzes = ref<AdminQuizItem[]>([]);
 
 const newQuiz = ref({
+  courseId: '',
   title: '',
   description: '',
-  difficulty: 'MEDIUM',
   timeLimit: 30,
+  passingScore: 70,
 });
 
 const totalQuizzes = computed(() => quizzes.value.length);
-const totalQuestions = computed(() => questionBank.value.reduce((sum, cat) => sum + cat.count, 0));
+const totalQuestions = computed(() => quizzes.value.reduce((sum, quiz) => sum + quiz.questionCount, 0));
 const avgCompletionRate = computed(() => {
+  if (quizzes.value.length === 0) {
+    return 0;
+  }
+
   const total = quizzes.value.reduce((sum, quiz) => sum + quiz.avgScore, 0);
   return Math.round(total / quizzes.value.length);
 });
 
-const createQuiz = async () => {
-  console.log('Creating quiz:', newQuiz.value);
-  showCreateQuizModal.value = false;
+const fetchCourses = async () => {
+  try {
+    const response = await apiClient.get<{ courses: AdminCourseItem[] }>(
+      API_ENDPOINTS.COURSE.ADMIN.LIST
+    );
+
+    if (response.success && response.data?.courses) {
+      courses.value = response.data.courses;
+    }
+  } catch {
+    toast('Không thể tải danh sách khóa học', 'error');
+  }
 };
 
-const editQuiz = (quizId: number) => {
-  console.log('Editing quiz:', quizId);
+const fetchQuizzes = async () => {
+  loading.value = true;
+  try {
+    const response = await apiClient.get<{ quizzes: AdminQuizItem[] }>(API_ENDPOINTS.ADMIN.QUIZ.LIST);
+    if (response.success && response.data?.quizzes) {
+      quizzes.value = response.data.quizzes;
+    } else {
+      quizzes.value = [];
+    }
+  } catch {
+    quizzes.value = [];
+    toast('Không thể tải danh sách quiz', 'error');
+  } finally {
+    loading.value = false;
+  }
 };
+
+const createQuiz = async () => {
+  if (!newQuiz.value.title.trim()) {
+    toast('Vui lòng nhập tiêu đề quiz', 'warning');
+    return;
+  }
+
+  if (!newQuiz.value.courseId) {
+    toast('Vui lòng chọn khóa học', 'warning');
+    return;
+  }
+
+  try {
+    loading.value = true;
+    await apiClient.post(API_ENDPOINTS.ADMIN.QUIZ.CREATE, {
+      courseId: newQuiz.value.courseId,
+      title: newQuiz.value.title,
+      description: newQuiz.value.description || null,
+      duration: Number(newQuiz.value.timeLimit),
+      passingScore: Number(newQuiz.value.passingScore),
+    });
+
+    toast('Tạo quiz thành công', 'success');
+    showCreateQuizModal.value = false;
+    newQuiz.value = {
+      courseId: '',
+      title: '',
+      description: '',
+      timeLimit: 30,
+      passingScore: 70,
+    };
+
+    await fetchQuizzes();
+  } catch {
+    toast('Không thể tạo quiz', 'error');
+  } finally {
+    loading.value = false;
+  }
+};
+
+const editQuiz = (quizId: string) => {
+  toast(`Quiz ${quizId} - màn hình chỉnh sửa sẽ được bổ sung`, 'info');
+};
+
+onMounted(async () => {
+  await Promise.all([fetchCourses(), fetchQuizzes()]);
+});
 
 useHead({
   title: 'Quản lý Quiz - Admin',

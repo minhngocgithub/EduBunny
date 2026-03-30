@@ -1,10 +1,13 @@
 {
-"extends": "../tsconfig.json",
-"compilerOptions": {
-"noImplicitAny": false,
-"strict": false
-},
-"include": [
-"**/*.ts"
-]
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"rootDir": "..",
+		"noImplicitAny": false,
+		"strict": false,
+		"types": ["node", "jest"]
+	},
+	"include": [
+		"**/*.ts",
+		"../src/**/*.ts"
+	]
 }

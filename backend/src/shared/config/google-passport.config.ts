@@ -70,30 +70,4 @@ passport.use(
   )
 )
 
-passport.serializeUser((user: Express.User, done) => {
-  done(null, user.userId)
-})
-
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id },
-    })
-
-    if (!user) {
-      return done(null, false)
-    }
-
-    const expressUser: Express.User = {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    }
-
-    done(null, expressUser)
-  } catch (error) {
-    done(error, null)
-  }
-})
-
 export default passport

@@ -4,13 +4,12 @@ import {
     DailyProgressSummary,
     WeeklyProgressReport,
     ChildrenProgressSummary,
-    RealtimeActivityEvent,
 } from './monitoring.types';
 import { websocketService } from '@/shared/services/websocket.service';
 import { notificationService } from '@/shared/services/notification.service';
 import { logger } from '@/shared/utils/logger.utils';
 import { rewardService } from '../reward/reward.service';
-import { RewardCategory } from '@prisma/client';
+import { RewardTrigger } from '../reward/reward.types';
 
 const prisma = new PrismaClient();
 
@@ -314,11 +313,6 @@ export class MonitoringService {
 
         // Subject breakdown for strengths/weaknesses
         const subjectMap = new Map<string, { scores: number[]; coursesCompleted: number }>();
-        
-        enrollments.forEach(enrollment => {
-            const course = enrollment as any; // Will be loaded with course
-            // This will be populated by joining with courses
-        });
 
         // Get courses for enrollments
         const courseIds = enrollments.map(e => e.courseId);
@@ -338,10 +332,6 @@ export class MonitoringService {
         });
 
         // Add quiz scores by subject
-        quizAttempts.forEach(attempt => {
-            const quiz = attempt as any; // Will need to join with quiz.course
-        });
-
         const quizIds = quizAttempts.map(a => a.quizId);
         const quizzes = await prisma.quiz.findMany({
             where: { id: { in: quizIds } },
@@ -564,7 +554,7 @@ export class MonitoringService {
             data: {
                 userId,
                 type,
-                metadata: metadata || null,
+                ...(metadata && { metadata: metadata as unknown || {} }),
             },
         });
 
@@ -574,10 +564,7 @@ export class MonitoringService {
             
             // Grant daily login reward if this is first activity today
             if (type === ActivityType.LOGIN) {
-                await rewardService.grantReward({
-                    studentId: userId,
-                    category: RewardCategory.DAILY_LOGIN,
-                });
+                await rewardService.grantByTrigger(userId, RewardTrigger.DAILY_LOGIN);
             }
         } catch (error) {
             logger.error('Failed to update streak or grant daily reward:', error);
@@ -599,7 +586,7 @@ export class MonitoringService {
         if (student?.parent) {
             websocketService.emitActivityEvent(student.parent.userId, userId, {
                 type,
-                metadata: metadata || null,
+                metadata: metadata ?? null,
                 timestamp: activity.createdAt,
             });
         }

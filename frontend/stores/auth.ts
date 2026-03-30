@@ -297,8 +297,7 @@ export const useAuthStore = defineStore('auth', {
 
             this.accessToken = accessToken;
             this.refreshToken = refreshToken;
-            this.isAuthenticated = true; // QUAN TRỌNG: Set authenticated ngay
-
+            this.isAuthenticated = true; 
             if (process.client) {
                 if (accessToken) {
                     localStorage.setItem('accessToken', accessToken);
@@ -315,7 +314,6 @@ export const useAuthStore = defineStore('auth', {
             });
         },
 
-        // Clear auth data
         clearAuthData() {
             this.user = null;
             this.accessToken = null;
