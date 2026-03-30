@@ -112,5 +112,20 @@ export const API_ENDPOINTS = {
       POPULAR_CONTENT: '/admin/analytics/popular-content',
       SUBJECT_PROGRESS: '/admin/analytics/subject-progress',
     },
+    QUIZ: {
+      LIST: '/quizzes/admin',
+      CREATE: '/quizzes',
+      UPDATE: (id: string) => `/quizzes/${id}`,
+      DELETE: (id: string) => `/quizzes/${id}`,
+      QUESTIONS: (id: string) => `/quizzes/${id}/questions`,
+    },
+  },
+  QUIZ: {
+    LIST_BY_COURSE: (courseId: string) => `/quizzes/course/${courseId}`,
+    DETAIL: (id: string) => `/quizzes/${id}`,
+    START: (id: string) => `/quizzes/${id}/start`,
+    SUBMIT: (id: string) => `/quizzes/${id}/submit`,
+    SAVE_ANSWER: (attemptId: string) => `/quizzes/attempts/${attemptId}/answers`,
+    ATTEMPT_RESULT: (attemptId: string) => `/quizzes/attempts/${attemptId}`,
   },
 } as const

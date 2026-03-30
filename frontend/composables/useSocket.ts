@@ -96,37 +96,7 @@ export const useSocket = () => {
     }
   };
 
-  // Subscribe to course updates
-  const subscribeToCourseUpdates = (callback: (data: any) => void) => {
-    // Get or create socket
-    const socket = connect();
-    
-    if (!socket) {
-      console.warn('⚠️ Socket not available for subscription');
-      return () => {};
-    }
-    
-    console.log('📡 Subscribing to course updates');
-    
-    // Remove existing listeners first to avoid duplicates
-    socket.off('course:created');
-    socket.off('course:updated');
-    socket.off('course:deleted');
-    
-    // Add new listeners
-    socket.on('course:created', callback);
-    socket.on('course:updated', callback);
-    socket.on('course:deleted', callback);
-    
-    return () => {
-      console.log('📡 Unsubscribing from course updates');
-      if (socket) {
-        socket.off('course:created', callback);
-        socket.off('course:updated', callback);
-        socket.off('course:deleted', callback);
-      }
-    };
-  };
+
 
   // Get socket instance
   const getSocket = () => {
@@ -140,7 +110,6 @@ export const useSocket = () => {
     state: readonly(state),
     connect,
     disconnect,
-    subscribeToCourseUpdates,
     getSocket,
   };
 };

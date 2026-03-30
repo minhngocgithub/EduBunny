@@ -76,15 +76,7 @@
         </div>
       </div>
 
-      <!-- Realtime Status -->
-      <div v-if="socketState.connected"
-        class="flex items-center gap-2 p-3 mb-6 bg-green-50 dark:bg-green-900/20 rounded-2xl">
-        <span class="relative flex size-3">
-          <span class="absolute inline-flex w-full h-full bg-green-400 rounded-full opacity-75 animate-ping"></span>
-          <span class="relative inline-flex bg-green-500 rounded-full size-3"></span>
-        </span>
-        
-      </div>
+
 
       <!-- Loading State -->
       <div v-if="loading" class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -301,7 +293,6 @@ useHead({
 
 const { apiClient } = useApiClient();
 const { toast } = useSweetAlert();
-const { state: socketState, connect, subscribeToCourseUpdates, disconnect } = useSocket();
 const router = useRouter();
 
 // State
@@ -514,38 +505,8 @@ const formatDuration = (minutes: number): string => {
 };
 
 // Lifecycle
-let isSocketInitialized = false;
-let unsubscribeSocket: (() => void) | null = null;
-
 onMounted(async () => {
   await fetchCourses();
-
-  // Setup realtime updates
-  if (!isSocketInitialized) {
-    isSocketInitialized = true;
-    connect();
-
-    unsubscribeSocket = subscribeToCourseUpdates((data) => {
-      console.log('📢 Course update received:', data);
-
-      // Refetch courses when there's an update
-      fetchCourses();
-
-      // Show notification
-      toast('Danh sách khóa học đã được cập nhật! 🔄', 'info');
-    });
-  }
-});
-
-onUnmounted(() => {
-  if (unsubscribeSocket) {
-    unsubscribeSocket();
-    unsubscribeSocket = null;
-  }
-  if (isSocketInitialized) {
-    disconnect();
-    isSocketInitialized = false;
-  }
 });
 
 // Watch filters and reset page
