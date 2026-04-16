@@ -26,14 +26,14 @@
 - **Frontend Deploy**: Vercel
 - **CI/CD**: GitHub Actions
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Node.js 20+
 - npm or pnpm
 - Docker Desktop
 - Git
 
-## 🛠️ Quick Start
+## Quick Start
 
 ### 1. Clone repository
 ```bash
@@ -119,7 +119,7 @@ cd frontend
 npm test
 ```
 
-## 📦 Build
+## Build
 
 ### Backend
 ```bash
