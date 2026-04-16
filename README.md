@@ -1,8 +1,8 @@
-# 🎓 Learning Platform for Kids (Grades 1-5)
+# Learning Platform for Kids (Grades 1-5)
 
 > An interactive educational platform designed specifically for elementary school children
 
-## 🚀 Tech Stack
+## Tech Stack
 
 ### Backend
 - **Runtime**: Node.js 20+
@@ -74,7 +74,7 @@ npm run dev
 
 Frontend runs on: http://localhost:3000
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 EduForKids/
@@ -85,7 +85,7 @@ EduForKids/
 └── README.md
 ```
 
-## 🗄️ Database Access
+## Database Access
 
 - **Adminer**: http://localhost:8080
   - System: MySQL
@@ -96,14 +96,14 @@ EduForKids/
 
 - **Redis Commander**: http://localhost:8081
 
-## 📚 Documentation
+## Documentation
 
 - [Setup Guide](docs/SETUP.md)
 - [API Documentation](docs/API.md)
 - [Database Schema](docs/DATABASE.md)
 - [Deployment Guide](docs/DEPLOYMENT.md)
 
-## 🧪 Testing
+## Testing
 
 ### Backend
 ```bash
@@ -135,26 +135,26 @@ npm run build
 npm run preview
 ```
 
-## 🚢 Deployment
+## Deployment
 
 See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions.
 
 - **Backend**: Railway (automatic from main branch)
 - **Frontend**: Vercel (automatic from main branch)
 
-## 🤝 Contributing
+## Contributing
 
 Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) before submitting PRs.
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file
 
-## 👤 Author
+## Author
 
 Your Name - your.email@example.com
 
-## 🔗 Links
+## Links
 
 - [Live Demo](https://your-app.vercel.app)
 - [API Documentation](https://your-backend.railway.app/api-docs)
