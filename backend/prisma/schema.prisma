@@ -119,6 +119,54 @@ enum ShopItemType {
   THEME
 }
 
+enum CurrencyCode {
+  VND
+}
+
+enum PaymentGateway {
+  MOMO
+  ZALOPAY
+  VNPAY
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum EntitlementSource {
+  LEGACY_ENROLLMENT
+  FREE_COURSE
+  PURCHASE
+  ADMIN_GRANT
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+}
+
+enum PaymentEventType {
+  CALLBACK
+  WEBHOOK
+  RECONCILIATION
+}
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
@@ -225,6 +273,9 @@ model Student {
   transactions RewardTransaction[]
   purchases    ShopPurchase[]
   streakShields StreakShield[]
+  courseEntitlements CourseEntitlement[]
+  coursePurchases   CoursePurchase[]
+  courseRefunds     CourseRefund[]
 
   @@index([userId])
   @@index([parentId])
@@ -277,6 +328,11 @@ model Course {
   enrollments Enrollment[]
   quizzes     Quiz[]
   reviews     CourseReview[]
+  pricing     CoursePricing?
+  subscriptionPlans SubscriptionPlan[]
+  entitlements CourseEntitlement[]
+  purchases    CoursePurchase[]
+  discounts    CourseDiscount[]
 
   @@index([slug])
   @@index([subject])
@@ -325,6 +381,151 @@ model Enrollment {
   @@index([courseId])
   @@index([progress])
   @@map("enrollments")
+}
+
+model CoursePricing {
+  id         String       @id @default(uuid())
+  courseId   String       @unique
+  basePrice  Int          @default(0) @db.UnsignedInt
+  currency   CurrencyCode @default(VND)
+  saleStartAt DateTime?
+  saleEndAt   DateTime?
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([saleStartAt, saleEndAt])
+  @@map("course_pricing")
+}
+
+model SubscriptionPlan {
+  id           String       @id @default(uuid())
+  courseId     String
+  name         String
+  durationDays Int          @db.UnsignedInt
+  priceAmount  Int          @db.UnsignedInt
+  currency     CurrencyCode @default(VND)
+  isActive     Boolean      @default(true)
+  order        Int          @default(0) @db.UnsignedInt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  purchases CoursePurchase[]
+
+  @@unique([courseId, name])
+  @@index([courseId, isActive])
+  @@index([durationDays])
+  @@map("subscription_plans")
+}
+
+model CourseDiscount {
+  id        String       @id @default(uuid())
+  courseId  String
+  type      DiscountType
+  value     Int          @db.UnsignedInt
+  startsAt  DateTime
+  endsAt    DateTime
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, isActive])
+  @@index([startsAt, endsAt])
+  @@map("course_discounts")
+}
+
+model CoursePurchase {
+  id                   String         @id @default(uuid())
+  studentId            String
+  courseId             String
+  subscriptionPlanId   String?
+  gateway              PaymentGateway
+  gatewayTransactionId String?        @db.VarChar(191)
+  status               PaymentStatus  @default(PENDING)
+  amount               Int            @db.UnsignedInt
+  currency             CurrencyCode   @default(VND)
+  paidAt               DateTime?
+  expiresAt            DateTime?
+  metadata             Json?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  student          Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subscriptionPlan SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id], onDelete: SetNull)
+  entitlement      CourseEntitlement?
+  refunds          CourseRefund[]
+
+  @@unique([gateway, gatewayTransactionId])
+  @@index([studentId, createdAt])
+  @@index([courseId, status])
+  @@index([gateway, gatewayTransactionId])
+  @@map("course_purchases")
+}
+
+model CourseEntitlement {
+  id        String            @id @default(uuid())
+  studentId String
+  courseId  String
+  purchaseId String?          @unique
+  source    EntitlementSource
+  status    EntitlementStatus @default(ACTIVE)
+  startsAt  DateTime          @default(now())
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  student  Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course   Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  purchase CoursePurchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, courseId, source])
+  @@index([studentId, status, expiresAt])
+  @@index([courseId, status])
+  @@map("course_entitlements")
+}
+
+model CourseRefund {
+  id          String       @id @default(uuid())
+  purchaseId  String
+  studentId   String
+  amount      Int          @db.UnsignedInt
+  status      RefundStatus @default(PENDING)
+  reason      String?      @db.Text
+  processedBy String?
+  processedAt DateTime?
+  refundedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  purchase CoursePurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  student  Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId, status])
+  @@index([studentId, createdAt])
+  @@map("course_refunds")
+}
+
+model PaymentEvent {
+  id                   String           @id @default(uuid())
+  gateway              PaymentGateway
+  gatewayTransactionId String
+  eventType            PaymentEventType
+  payload              Json
+  processedAt          DateTime?
+  createdAt            DateTime         @default(now())
+
+  @@unique([gatewayTransactionId, eventType])
+  @@index([gateway, createdAt])
+  @@index([processedAt])
+  @@map("payment_events")
 }
 
 model Progress {

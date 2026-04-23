@@ -20,11 +20,32 @@ if (process.client && window.location.pathname === '/auth/callback') {
 
 const { login, register } = useAuth();
 const { showToast } = useToast();
+const route = useRoute();
+const config = useRuntimeConfig();
 
 // State
 const isRegister = ref(false);
 const selectedRole = ref<'STUDENT' | 'PARENT' | 'TEACHER'>('STUDENT');
 const loading = ref(false);
+
+const getGoogleLoginErrorMessage = (reason?: string) => {
+  switch (reason) {
+    case 'access_denied':
+      return 'Bạn đã từ chối quyền truy cập Google. Vui lòng thử lại.';
+    case 'token_exchange_failed':
+      return 'Không thể xác thực với Google. Hãy kiểm tra Google Client ID/Secret.';
+    case 'google_account_already_linked':
+      return 'Tài khoản Google này đã liên kết với người dùng khác.';
+    case 'google_email_missing':
+      return 'Google không trả về email. Vui lòng chọn tài khoản khác.';
+    case 'callback_processing_failed':
+      return 'Đã xác thực Google nhưng xử lý đăng nhập thất bại.';
+    case 'passport_auth_error':
+      return 'Xác thực Google thất bại. Vui lòng thử lại.';
+    default:
+      return 'Đăng nhập Google thất bại. Vui lòng thử lại.';
+  }
+};
 
 // Login Schema
 const loginSchema = toTypedSchema(
@@ -194,7 +215,7 @@ const handleGoogleLogin = (event?: Event) => {
   }
   console.log('Google login clicked');
   // Redirect to backend Google OAuth endpoint
-  const backendUrl = 'http://localhost:3001/api';
+  const backendUrl = (config.public.apiBaseUrl as string).replace(/\/$/, '');
   const redirectUrl = `${backendUrl}/auth/google`;
   console.log('Redirecting to:', redirectUrl);
 
@@ -210,6 +231,30 @@ const toggleMode = () => {
   loginFormRef.value?.resetForm();
   registerFormRef.value?.resetForm();
 };
+
+onMounted(() => {
+  const authError = route.query.error as string | undefined;
+  if (authError !== 'auth_failed' && authError !== 'user_not_found') {
+    return;
+  }
+
+  const reason = route.query.reason as string | undefined;
+  const debug = route.query.debug as string | undefined;
+  const message =
+    authError === 'user_not_found'
+      ? 'Không tìm thấy người dùng sau khi xác thực Google.'
+      : getGoogleLoginErrorMessage(reason);
+
+  const detailedMessage =
+    process.dev && debug
+      ? `${message} (${debug})`
+      : message;
+
+  showToast({
+    type: 'error',
+    message: detailedMessage,
+  });
+});
 </script>
 
 <template>

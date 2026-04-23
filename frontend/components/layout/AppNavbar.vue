@@ -13,7 +13,7 @@
 
             <!-- Desktop Navigation Links -->
             <div class="items-center hidden gap-10 lg:flex">
-                <NuxtLink v-for="link in navLinks" :key="link.path" :to="link.path"
+                <NuxtLink v-for="link in navLinks" :key="`${link.path}-${link.name}`" :to="link.path"
                     class="relative font-bold text-gray-600 transition-all dark:text-slate-400 hover:text-primary dark:hover:text-primary group">
                     {{ link.name }}
                     <span
@@ -40,7 +40,7 @@
                 </ClientOnly>
 
                 <!-- Authenticated User Actions -->
-                <template v-if="isAuthenticated">
+                <template v-if="showAuthenticatedUI">
                     <!-- Notifications -->
                     <button
                         class="relative flex items-center justify-center transition-all border border-gray-100 rounded-2xl size-10 bg-white/50 dark:bg-slate-800 dark:border-slate-700 hover:scale-110">
@@ -165,12 +165,12 @@
             <div v-if="showMobileMenu"
                 class="absolute left-0 right-0 p-6 mx-6 mt-4 border border-gray-100 shadow-xl lg:hidden top-full rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl dark:border-slate-800">
                 <div class="space-y-2">
-                    <NuxtLink v-for="link in navLinks" :key="link.path" :to="link.path" @click="closeMobileMenu"
+                    <NuxtLink v-for="link in navLinks" :key="`${link.path}-${link.name}`" :to="link.path" @click="closeMobileMenu"
                         class="block px-4 py-3 font-bold text-gray-700 transition-all rounded-2xl hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800">
                         {{ link.name }}
                     </NuxtLink>
 
-                    <template v-if="!isAuthenticated">
+                    <template v-if="!showAuthenticatedUI">
                         <NuxtLink to="/auth" @click="closeMobileMenu"
                             class="block px-4 py-3 font-bold text-center text-gray-700 transition-all rounded-2xl hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800">
                             Đăng nhập
@@ -196,9 +196,11 @@ const showDropdown = ref(false);
 const showMobileMenu = ref(false);
 const showLeaderboard = ref(false);
 const dropdownRef = ref<HTMLElement | null>(null);
+const isHydrated = ref(false);
 
 // Computed
 const isAuthenticated = computed(() => authStore.isLoggedIn);
+const showAuthenticatedUI = computed(() => isHydrated.value && isAuthenticated.value);
 const isDark = computed(() => themeStore.isDark);
 const hasNotifications = computed(() => true); // TODO: Implement notification system
 
@@ -222,7 +224,7 @@ const studentStreak = computed(() => userStore.studentProfile?.streak || 0);
 
 // Navigation Links
 const navLinks = computed(() => {
-    if (isAuthenticated.value) {
+    if (showAuthenticatedUI.value) {
         return [
             { name: 'Dashboard', path: '/dashboard' },
             { name: 'Khóa học', path: '/courses' },
@@ -231,10 +233,10 @@ const navLinks = computed(() => {
         ];
     }
     return [
-        { name: 'Khóa học', path: '/#courses' },
-        { name: 'Thỏ Ngọc AI', path: '/#ai' },
-        { name: 'Phụ huynh', path: '/#parents' },
-        { name: 'Giáo viên', path: '/#teachers' },
+        { name: 'Khóa học', path: '/courses' },
+        { name: 'Thỏ Ngọc AI', path: '/chatbot' },
+        { name: 'Phụ huynh', path: '/auth' },
+        { name: 'Giáo viên', path: '/auth' },
     ];
 });
 
@@ -291,6 +293,12 @@ const closeMobileMenu = () => {
     showMobileMenu.value = false;
 };
 
+const handleDocumentClick = (e: MouseEvent) => {
+    if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+        closeDropdown();
+    }
+};
+
 const handleLogout = async () => {
     closeDropdown();
     await authStore.logout();
@@ -303,15 +311,12 @@ const handleLogout = async () => {
 
 // Click outside to close dropdown
 onMounted(() => {
-    document.addEventListener('click', (e) => {
-        if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
-            closeDropdown();
-        }
-    });
+    isHydrated.value = true;
+    document.addEventListener('click', handleDocumentClick);
 });
 
 onUnmounted(() => {
-    document.removeEventListener('click', closeDropdown);
+    document.removeEventListener('click', handleDocumentClick);
 });
 </script>
 

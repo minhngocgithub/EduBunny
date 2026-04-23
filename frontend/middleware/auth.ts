@@ -1,16 +1,14 @@
 export default defineNuxtRouteMiddleware((to, from) => {
     const authStore = useAuthStore();
 
-    // On client side, check localStorage directly to avoid race condition with plugin initialization
+    // On client side, check localStorage directly to avoid race condition with plugin initialization.
     if (process.client && !authStore.isLoggedIn) {
         const hasToken = localStorage.getItem('accessToken');
-        const hasUser = localStorage.getItem('user');
 
-
-        // If tokens exist in localStorage but not in store, initialize auth state
-        if (hasToken && hasUser && hasToken !== 'undefined' && hasUser !== 'undefined') {
+        // If token exists in localStorage but not in store, initialize auth state.
+        if (hasToken && hasToken !== 'undefined') {
             authStore.initAuth();
-            // Allow navigation to proceed since we have valid auth data
+            // Allow navigation to proceed since we have valid auth token.
             return;
         }
     }

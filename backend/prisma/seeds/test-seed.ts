@@ -146,7 +146,7 @@ async function testSeed() {
 
     // Test 6: Validate data integrity
     console.log('\n🔐 Test 6: Validating data integrity...');
-    
+
     // Check courses have empty slugs (schema does not allow null)
     const coursesWithoutSlug = await prisma.course.count({
       where: { slug: '' },

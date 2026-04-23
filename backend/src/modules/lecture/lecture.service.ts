@@ -1,11 +1,12 @@
 import { PrismaClient, Lecture } from '@prisma/client';
 import { CreateLectureInput, UpdateLectureInput, LectureDetail, LectureListItem } from './lecture.types';
 import { createSlug } from './lecture.dto';
+import { courseAccessService } from '../course/course-access.service';
 
 const prisma = new PrismaClient();
 
 export class LectureService {
-    async getLecturesByCourse(courseId: string, studentId?: string): Promise<LectureListItem[]> {
+    async getLecturesByCourseForAdmin(courseId: string): Promise<LectureListItem[]> {
         const lectures = await prisma.lecture.findMany({
             where: {
                 courseId,
@@ -13,37 +14,77 @@ export class LectureService {
             orderBy: { order: 'asc' },
         });
 
-        // Get progress for student if provided
-        let progressMap: Map<string, { isCompleted: boolean; watchedSeconds: number; completionRate: number }> = new Map();
-        if (studentId) {
-            const progress = await prisma.progress.findMany({
+        return lectures.map((lecture) => ({
+            ...lecture,
+            canPlay: true,
+            isLocked: false,
+        }));
+    }
+
+    async getLecturesByCourse(courseId: string, userId?: string): Promise<LectureListItem[]> {
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
+
+        const studentId = await courseAccessService.requireStudentIdByUserId(userId);
+
+        const lectures = await prisma.lecture.findMany({
+            where: {
+                courseId,
+            },
+            orderBy: { order: 'asc' },
+        });
+
+        const [progressRecords, hasCourseAccess] = await Promise.all([
+            prisma.progress.findMany({
                 where: {
                     studentId,
                     lectureId: { in: lectures.map(l => l.id) },
                 },
-            });
+                select: {
+                    lectureId: true,
+                    isCompleted: true,
+                    completedAt: true,
+                    watchedSeconds: true,
+                    completionRate: true,
+                },
+            }),
+            courseAccessService.hasCourseAccessByStudentId(studentId, courseId),
+        ]);
 
-            progress.forEach(p => {
-                progressMap.set(p.lectureId, {
-                    isCompleted: p.isCompleted,
-                    watchedSeconds: p.watchedSeconds,
-                    completionRate: p.completionRate,
-                });
+        const progressMap = new Map<string, { isCompleted: boolean; completedAt: Date | null; watchedSeconds: number; completionRate: number }>();
+        progressRecords.forEach((progress) => {
+            progressMap.set(progress.lectureId, {
+                isCompleted: progress.isCompleted,
+                completedAt: progress.completedAt,
+                watchedSeconds: progress.watchedSeconds,
+                completionRate: progress.completionRate,
             });
-        }
+        });
 
         return lectures.map(lecture => {
             const progress = progressMap.get(lecture.id);
+            const canPlay = hasCourseAccess || Boolean(progress?.isCompleted || progress?.completedAt);
+
             return {
                 ...lecture,
+                videoUrl: canPlay ? lecture.videoUrl : null,
                 isCompleted: progress?.isCompleted || false,
                 watchedSeconds: progress?.watchedSeconds || 0,
                 completionRate: progress?.completionRate || 0,
+                canPlay,
+                isLocked: !canPlay,
             };
         });
     }
 
-    async getLectureById(id: string, studentId?: string): Promise<LectureDetail | null> {
+    async getLectureById(id: string, userId?: string): Promise<LectureDetail | null> {
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
+
+        const studentId = await courseAccessService.requireStudentIdByUserId(userId);
+
         const lecture = await prisma.lecture.findUnique({
             where: { id },
             include: {
@@ -55,28 +96,39 @@ export class LectureService {
             return null;
         }
 
+        const canViewLecture = await courseAccessService.canViewLectureByStudentId(studentId, lecture.id);
+        if (!canViewLecture) {
+            throw new Error('Lecture access denied');
+        }
+
         // Get progress for student if provided
         let progress = null;
-        if (studentId) {
-            progress = await prisma.progress.findUnique({
-                where: {
-                    studentId_lectureId: {
-                        studentId,
-                        lectureId: id,
-                    },
+        progress = await prisma.progress.findUnique({
+            where: {
+                studentId_lectureId: {
+                    studentId,
+                    lectureId: id,
                 },
-            });
-        }
+            },
+        });
 
         return {
             ...lecture,
             isCompleted: progress?.isCompleted || false,
             watchedSeconds: progress?.watchedSeconds || 0,
             completionRate: progress?.completionRate || 0,
+            canPlay: true,
+            isLocked: false,
         };
     }
 
-    async getLectureBySlug(slug: string, studentId?: string): Promise<LectureDetail | null> {
+    async getLectureBySlug(slug: string, userId?: string): Promise<LectureDetail | null> {
+        if (!userId) {
+            throw new Error('Authentication required');
+        }
+
+        const studentId = await courseAccessService.requireStudentIdByUserId(userId);
+
         const lecture = await prisma.lecture.findUnique({
             where: { slug },
             include: {
@@ -88,24 +140,29 @@ export class LectureService {
             return null;
         }
 
+        const canViewLecture = await courseAccessService.canViewLectureByStudentId(studentId, lecture.id);
+        if (!canViewLecture) {
+            throw new Error('Lecture access denied');
+        }
+
         // Get progress for student if provided
         let progress = null;
-        if (studentId) {
-            progress = await prisma.progress.findUnique({
-                where: {
-                    studentId_lectureId: {
-                        studentId,
-                        lectureId: lecture.id,
-                    },
+        progress = await prisma.progress.findUnique({
+            where: {
+                studentId_lectureId: {
+                    studentId,
+                    lectureId: lecture.id,
                 },
-            });
-        }
+            },
+        });
 
         return {
             ...lecture,
             isCompleted: progress?.isCompleted || false,
             watchedSeconds: progress?.watchedSeconds || 0,
             completionRate: progress?.completionRate || 0,
+            canPlay: true,
+            isLocked: false,
         };
     }
 

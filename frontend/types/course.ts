@@ -20,7 +20,10 @@ export interface CourseListItem {
     reviewCount: number;
     enrollmentCount: number;
     isEnrolled: boolean;
+    hasActiveEntitlement?: boolean;
+    canAccessLearningContent?: boolean;
     isPublished?: boolean;
+    learningProgress?: number;
 }
 
 // Admin course list item
@@ -79,4 +82,39 @@ export interface CreateCourseInput {
     thumbnail?: string;
     isPublished?: boolean;
     isFree?: boolean;
+}
+
+export interface CourseDetailLecture {
+    id: string;
+    title: string;
+    description: string | null;
+    videoUrl: string | null;
+    duration: number;
+    order: number;
+    isPreview: boolean;
+    canPlay?: boolean;
+    isLocked?: boolean;
+    isCompleted?: boolean;
+    watchedSeconds?: number;
+    completionRate?: number;
+}
+
+export interface CourseDetail {
+    id: string;
+    title: string;
+    slug: string;
+    description: string | null;
+    thumbnail: string | null;
+    subject: Subject;
+    grade: Grade;
+    level: CourseLevel;
+    duration: number;
+    isPublished: boolean;
+    isFree: boolean;
+    enrollmentCount: number;
+    isEnrolled: boolean;
+    hasActiveEntitlement?: boolean;
+    canAccessLearningContent?: boolean;
+    accessSource?: 'free_course' | 'entitlement' | 'legacy_enrollment' | null;
+    lectures: CourseDetailLecture[];
 }

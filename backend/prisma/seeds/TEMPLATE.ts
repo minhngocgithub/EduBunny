@@ -20,7 +20,7 @@ export const templateQuestions: QuestionData[] = [
     points: 10,
     order: 1,
   },
-  
+
   // True/False Question
   {
     type: QuestionType.TRUE_FALSE,
@@ -30,7 +30,7 @@ export const templateQuestions: QuestionData[] = [
     points: 10,
     order: 2,
   },
-  
+
   // Fill in the Blank
   {
     type: QuestionType.FILL_BLANK,
@@ -40,7 +40,7 @@ export const templateQuestions: QuestionData[] = [
     points: 10,
     order: 3,
   },
-  
+
   // Matching Question (sử dụng JSON cho options)
   {
     type: QuestionType.MATCHING,
@@ -84,7 +84,7 @@ export const templateLectures: LectureData[] = [
     order: 1,
     isPreview: true, // true = cho xem miễn phí
   },
-  
+
   // Lecture có quiz
   {
     title: 'Bài 2: [Tên bài học có kiểm tra]',
@@ -115,7 +115,7 @@ export const templateLectures: LectureData[] = [
       ],
     },
   },
-  
+
   // Lecture kiểu bài đọc (không có video)
   {
     title: 'Bài 3: [Bài đọc]',
@@ -141,23 +141,23 @@ export const templateCourse: CourseData = {
     Giáo dục Phổ thông 2018.
   `.trim(),
   thumbnail: '/images/courses/course-thumbnail.jpg',
-  
+
   // Môn học: MATH, VIETNAMESE, ENGLISH, SCIENCE, HISTORY, GEOGRAPHY, ART, MUSIC, PE, LIFE_SKILLS
   subject: Subject.MATH,
-  
+
   // Lớp học: GRADE_1, GRADE_2, GRADE_3, GRADE_4, GRADE_5
   grade: Grade.GRADE_1,
-  
+
   // Mức độ: BEGINNER, INTERMEDIATE, ADVANCED
   level: CourseLevel.BEGINNER,
-  
+
   // Tổng thời lượng (phút) - tính tổng duration của tất cả lectures
   duration: 3000,
-  
+
   isPublished: true, // true = hiển thị cho học sinh
   isFree: true, // true = miễn phí
   order: 1, // thứ tự hiển thị
-  
+
   lectures: templateLectures,
 };
 

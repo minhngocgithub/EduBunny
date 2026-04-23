@@ -16,6 +16,7 @@ passport.use(
     async (_accessToken, _refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value
+        const googleId = typeof profile.id === 'string' ? profile.id.trim() : ''
         const firstName = profile.name?.givenName || ''
         const lastName = profile.name?.familyName || ''
         const avatar = profile.photos?.[0]?.value
@@ -24,18 +25,34 @@ passport.use(
           return done(new Error('No email found in Google profile'), undefined)
         }
 
-        let user = await prisma.user.findUnique({
-          where: { email },
-        })
+        if (!googleId) {
+          return done(new Error('Google profile ID is missing'), undefined)
+        }
+
+        const normalizedEmail = email.trim().toLowerCase()
+
+        const [userByGoogleId, userByEmail] = await Promise.all([
+          prisma.user.findFirst({ where: { googleId } }),
+          prisma.user.findUnique({ where: { email: normalizedEmail } }),
+        ])
+
+        if (userByGoogleId && userByEmail && userByGoogleId.id !== userByEmail.id) {
+          return done(
+            new Error('Google account is already linked to another user'),
+            undefined
+          )
+        }
+
+        let user = userByGoogleId || userByEmail
 
         if (!user) {
           user = await prisma.user.create({
             data: {
-              email,
+              email: normalizedEmail,
               password: '',
               role: UserRole.STUDENT,
               emailVerified: true,
-              googleId: profile.id,
+              googleId,
               student: {
                 create: {
                   firstName,
@@ -48,10 +65,23 @@ passport.use(
             },
           })
         } else {
+          const updateData: {
+            emailVerified?: boolean
+            googleId?: string
+          } = {}
+
           if (!user.emailVerified) {
+            updateData.emailVerified = true
+          }
+
+          if (!user.googleId) {
+            updateData.googleId = googleId
+          }
+
+          if (Object.keys(updateData).length > 0) {
             user = await prisma.user.update({
               where: { id: user.id },
-              data: { emailVerified: true },
+              data: updateData,
             })
           }
         }
@@ -64,6 +94,7 @@ passport.use(
 
         return done(null, expressUser)
       } catch (error) {
+        console.error('Google Strategy verify callback failed:', error)
         return done(error as Error, undefined)
       }
     }

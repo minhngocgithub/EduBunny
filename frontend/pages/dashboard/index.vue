@@ -39,7 +39,7 @@
           <div
             class="relative overflow-hidden transition-all border border-white shadow-xl group rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5 hover:shadow-2xl hover:-translate-y-1">
             <div
-              class="absolute top-0 right-0 transition-transform rounded-full opacity-20 size-24 sm:size-32 bg-primary -translate-y-1/2 translate-x-1/3 group-hover:scale-110">
+              class="absolute top-0 right-0 transition-transform -translate-y-1/2 rounded-full opacity-20 size-24 sm:size-32 bg-primary translate-x-1/3 group-hover:scale-110">
             </div>
             <div class="relative p-4 sm:p-6">
               <div class="flex items-start justify-between mb-3 sm:mb-4">
@@ -75,7 +75,7 @@
           <div
             class="relative overflow-hidden transition-all border border-white shadow-xl group rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5 hover:shadow-2xl hover:-translate-y-1">
             <div
-              class="absolute top-0 right-0 transition-transform rounded-full opacity-20 size-24 sm:size-32 bg-orange-500 -translate-y-1/2 translate-x-1/3 group-hover:scale-110">
+              class="absolute top-0 right-0 transition-transform -translate-y-1/2 bg-orange-500 rounded-full opacity-20 size-24 sm:size-32 translate-x-1/3 group-hover:scale-110">
             </div>
             <div class="relative p-4 sm:p-6">
               <div
@@ -94,7 +94,7 @@
           <div
             class="relative overflow-hidden transition-all border border-white shadow-xl group rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5 hover:shadow-2xl hover:-translate-y-1">
             <div
-              class="absolute top-0 right-0 transition-transform rounded-full opacity-20 size-24 sm:size-32 bg-yellow-500 -translate-y-1/2 translate-x-1/3 group-hover:scale-110">
+              class="absolute top-0 right-0 transition-transform -translate-y-1/2 bg-yellow-500 rounded-full opacity-20 size-24 sm:size-32 translate-x-1/3 group-hover:scale-110">
             </div>
             <div class="relative p-4 sm:p-6">
               <div
@@ -113,7 +113,7 @@
           <div
             class="relative overflow-hidden transition-all border border-white shadow-xl group rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5 hover:shadow-2xl hover:-translate-y-1">
             <div
-              class="absolute top-0 right-0 transition-transform rounded-full opacity-20 size-24 sm:size-32 bg-amber-500 -translate-y-1/2 translate-x-1/3 group-hover:scale-110">
+              class="absolute top-0 right-0 transition-transform -translate-y-1/2 rounded-full opacity-20 size-24 sm:size-32 bg-amber-500 translate-x-1/3 group-hover:scale-110">
             </div>
             <div class="relative p-4 sm:p-6">
               <div
@@ -137,7 +137,7 @@
             <div
               class="relative overflow-hidden transition-all border border-white shadow-xl group rounded-2xl sm:rounded-3xl bg-gradient-to-r from-primary to-orange-400 dark:border-white/5 hover:shadow-2xl">
               <div
-                class="absolute top-0 right-0 transition-transform duration-700 rounded-full size-48 sm:size-64 bg-white/10 translate-x-1/2 -translate-y-1/2 blur-2xl group-hover:scale-110">
+                class="absolute top-0 right-0 transition-transform duration-700 translate-x-1/2 -translate-y-1/2 rounded-full size-48 sm:size-64 bg-white/10 blur-2xl group-hover:scale-110">
               </div>
               <div class="relative p-6 sm:p-8 md:p-10">
                 <div class="space-y-3 text-white sm:space-y-4 sm:max-w-md">
@@ -185,17 +185,20 @@
                 </NuxtLink>
               </div>
 
-              <div class="grid gap-4 sm:gap-6 md:grid-cols-2">
-                <NuxtLink v-for="course in courses" :key="course.id" :to="`/courses/${course.id}`"
-                  class="group relative border border-white shadow-xl rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden">
+              <div v-if="learningMapCourses.length > 0" class="grid gap-4 sm:gap-6 md:grid-cols-2">
+                <NuxtLink v-for="course in learningMapCourses" :key="course.id" :to="`/courses/${course.id}`"
+                  class="relative overflow-hidden transition-all duration-500 border border-white shadow-xl group rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5 hover:shadow-2xl hover:-translate-y-2">
                   <div
-                    class="relative h-40 overflow-hidden sm:h-48 rounded-t-2xl sm:rounded-t-3xl bg-gray-100 dark:bg-slate-800">
-                    <img :src="course.img" :alt="course.title"
+                    class="relative h-40 overflow-hidden bg-gray-100 sm:h-48 rounded-t-2xl sm:rounded-t-3xl dark:bg-slate-800">
+                    <img v-if="course.thumbnail" :src="course.thumbnail" :alt="course.title"
                       class="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110" />
+                    <div v-else class="flex items-center justify-center w-full h-full text-6xl">
+                      {{ getSubjectIcon(course.subject) }}
+                    </div>
                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                     <div
                       class="absolute px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-black tracking-wider uppercase border rounded-xl sm:rounded-2xl top-3 left-3 sm:top-4 sm:left-4 bg-white/95 dark:bg-slate-800/95 backdrop-blur text-primary border-primary/10">
-                      {{ course.subject }}
+                      {{ getSubjectName(course.subject) }}
                     </div>
                     <div
                       class="absolute flex items-center justify-center transition-all rounded-full size-10 sm:size-12 bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/95 dark:bg-slate-800/95 backdrop-blur text-primary group-hover:bg-primary group-hover:text-white">
@@ -211,7 +214,7 @@
                       </h3>
                       <p
                         class="text-[10px] sm:text-xs font-black text-gray-400 uppercase dark:text-slate-500 tracking-widest">
-                        Level {{ course.level }} • {{ course.grade }}
+                        {{ getCourseLevelName(course.level) }} • {{ getGradeName(course.grade) }}
                       </p>
                     </div>
 
@@ -219,12 +222,12 @@
                       <div
                         class="flex justify-between text-[10px] sm:text-xs font-bold text-gray-400 uppercase dark:text-slate-500 tracking-widest">
                         <span>Tiến độ</span>
-                        <span class="text-primary">{{ course.progress }}%</span>
+                        <span class="text-primary">{{ getCourseProgress(course) }}%</span>
                       </div>
                       <div class="h-2 overflow-hidden bg-gray-100 rounded-full sm:h-3 dark:bg-slate-800">
                         <div
                           class="relative h-full transition-all duration-500 rounded-full bg-gradient-to-r from-primary to-orange-400"
-                          :style="{ width: course.progress + '%' }">
+                          :style="{ width: getCourseProgress(course) + '%' }">
                           <div
                             class="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-move-bg">
                           </div>
@@ -232,6 +235,25 @@
                       </div>
                     </div>
                   </div>
+                </NuxtLink>
+              </div>
+
+              <div
+                v-else
+                class="p-6 text-center border border-white shadow-xl rounded-2xl sm:p-8 sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5"
+              >
+                <p class="text-base font-semibold text-gray-700 dark:text-slate-200">
+                  Bạn chưa có khóa học đang học dở.
+                </p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">
+                  Chọn một khóa học mới để bắt đầu hành trình học tập nhé.
+                </p>
+                <NuxtLink
+                  to="/courses"
+                  class="inline-flex items-center gap-2 px-5 py-2.5 mt-4 text-sm font-bold text-white transition-all rounded-xl bg-primary hover:opacity-90"
+                >
+                  Khám phá khóa học
+                  <span class="text-base material-symbols-outlined">arrow_forward</span>
                 </NuxtLink>
               </div>
             </div>
@@ -248,10 +270,7 @@
               <div class="space-y-2 sm:space-y-3">
                 <NuxtLink v-for="action in quickActions" :key="action.path" :to="action.path"
                   class="flex items-center gap-3 p-3 transition-all border border-transparent sm:gap-4 sm:p-4 rounded-xl sm:rounded-2xl hover:border-primary/30 hover:bg-primary/5 group">
-                  <div
-                    :class="`flex items-center justify-center rounded-xl sm:rounded-2xl size-10 sm:size-12 ${action.bgColor}`">
-                    <span class="text-xl sm:text-2xl">{{ action.icon }}</span>
-                  </div>
+                  
                   <div class="flex-1">
                     <p class="text-sm font-bold text-gray-800 sm:text-base dark:text-white">{{ action.name }}</p>
                     <p class="text-xs text-gray-500 dark:text-slate-400">{{ action.desc }}</p>
@@ -327,15 +346,20 @@
 </template>
 
 <script setup lang="ts">
+import type { CourseListItem, Subject, Grade, CourseLevel } from '~/types/course';
+import { API_ENDPOINTS } from '~/types/api';
+
 definePageMeta({
   middleware: 'auth',
 });
 
+const { apiClient } = useApiClient();
 const { user, isStudent, isParent } = useAuth();
 const userStore = useUserStore();
 
 const loading = ref(true);
 const stats = ref<any>(null);
+const courses = ref<CourseListItem[]>([]);
 
 // Computed properties - Match Navbar exactly
 const userName = computed(() => {
@@ -363,33 +387,115 @@ const xpProgress = computed(() => {
 
 // Quick Actions
 const quickActions = [
-  { name: 'Khóa học', desc: 'Xem tất cả khóa học', path: '/courses', icon: '📚', bgColor: 'bg-blue-50 dark:bg-blue-900/20' },
-  { name: 'Trò chơi', desc: 'Học qua trò chơi', path: '/games', icon: '🎮', bgColor: 'bg-green-50 dark:bg-green-900/20' },
-  { name: 'AI Chat', desc: 'Trò chuyện với Thỏ Ngọc', path: '/chatbot', icon: '🐰', bgColor: 'bg-purple-50 dark:bg-purple-900/20' },
-  { name: 'Hồ sơ', desc: 'Xem thông tin cá nhân', path: '/profile', icon: '👤', bgColor: 'bg-gray-50 dark:bg-gray-900/20' },
+  { name: 'Khóa học', desc: 'Xem tất cả khóa học', path: '/courses', bgColor: 'bg-blue-50 dark:bg-blue-900/20' },
+  { name: 'Trò chơi', desc: 'Học qua trò chơi', path: '/games', bgColor: 'bg-green-50 dark:bg-green-900/20' },
+  { name: 'AI Chat', desc: 'Trò chuyện với Thỏ Ngọc', path: '/chatbot', bgColor: 'bg-purple-50 dark:bg-purple-900/20' },
+  { name: 'Hồ sơ', desc: 'Xem thông tin cá nhân', path: '/profile', bgColor: 'bg-gray-50 dark:bg-gray-900/20' },
 ];
 
-// Mock courses data
-const courses = ref([
-  {
-    id: '1',
-    title: 'Khu rừng Phân số',
-    subject: 'Toán học',
-    level: 4,
-    grade: 'Lớp 3',
-    progress: 45,
-    img: 'https://picsum.photos/400/300?random=10'
-  },
-  {
-    id: '2',
-    title: 'Đảo Sinh học',
-    subject: 'Khoa học',
-    level: 1,
-    grade: 'Lớp 3',
-    progress: 10,
-    img: 'https://picsum.photos/400/300?random=11'
+const getCourseProgress = (course: CourseListItem): number => {
+  if (typeof course.learningProgress !== 'number') {
+    return 0;
   }
-]);
+
+  return Math.max(0, Math.min(100, Math.round(course.learningProgress)));
+};
+
+const learningMapCourses = computed(() => {
+  const publishedEnrolledCourses = courses.value.filter(
+    (course) => course.isEnrolled && course.isPublished !== false
+  );
+
+  const inProgressCourses = publishedEnrolledCourses
+    .filter((course) => {
+      const progress = getCourseProgress(course);
+      return progress > 0 && progress < 100;
+    })
+    .sort((a, b) => getCourseProgress(b) - getCourseProgress(a));
+
+  if (inProgressCourses.length > 0) {
+    return inProgressCourses.slice(0, 4);
+  }
+
+  return publishedEnrolledCourses.slice(0, 4);
+});
+
+const getSubjectName = (subject: Subject): string => {
+  const names: Record<Subject, string> = {
+    MATH: 'Toán học',
+    VIETNAMESE: 'Tiếng Việt',
+    ENGLISH: 'Tiếng Anh',
+    SCIENCE: 'Khoa học',
+    ART: 'Mỹ thuật',
+    MUSIC: 'Âm nhạc',
+    PE: 'Thể dục',
+    HISTORY: 'Lịch sử',
+    GEOGRAPHY: 'Địa lý',
+    LIFE_SKILLS: 'Kỹ năng sống',
+  };
+
+  return names[subject] || subject;
+};
+
+const getSubjectIcon = (subject: Subject): string => {
+  const icons: Record<Subject, string> = {
+    MATH: '🔢',
+    VIETNAMESE: '📖',
+    ENGLISH: '🗣️',
+    SCIENCE: '🔬',
+    ART: '🎨',
+    MUSIC: '🎵',
+    PE: '⚽',
+    HISTORY: '📜',
+    GEOGRAPHY: '🗺️',
+    LIFE_SKILLS: '🌱',
+  };
+
+  return icons[subject] || '📚';
+};
+
+const getGradeName = (grade: Grade): string => {
+  const names: Record<Grade, string> = {
+    GRADE_1: 'Lớp 1',
+    GRADE_2: 'Lớp 2',
+    GRADE_3: 'Lớp 3',
+    GRADE_4: 'Lớp 4',
+    GRADE_5: 'Lớp 5',
+  };
+
+  return names[grade] || grade;
+};
+
+const getCourseLevelName = (level: CourseLevel): string => {
+  const levelNames: Record<CourseLevel, string> = {
+    BEGINNER: 'Cơ bản',
+    INTERMEDIATE: 'Trung bình',
+    ADVANCED: 'Nâng cao',
+  };
+
+  return levelNames[level] || level;
+};
+
+const fetchLearningMapCourses = async () => {
+  try {
+    const response = await apiClient.get<CourseListItem[]>(
+      API_ENDPOINTS.COURSE.LIST,
+      {
+        page: 1,
+        limit: 100,
+      }
+    );
+
+    if (response.success && Array.isArray(response.data)) {
+      courses.value = response.data;
+      return;
+    }
+
+    courses.value = [];
+  } catch {
+    courses.value = [];
+  }
+};
 
 // Fetch user data
 onMounted(async () => {
@@ -402,6 +508,8 @@ onMounted(async () => {
       if (result.success) {
         stats.value = result.data;
       }
+
+      await fetchLearningMapCourses();
     }
   } catch (error) {
     console.error('Error fetching dashboard data:', error);

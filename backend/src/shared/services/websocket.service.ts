@@ -52,7 +52,7 @@ export class WebSocketService {
 
             socket.on('disconnect', () => {
                 logger.info(`WebSocket client disconnected: ${socket.id}`);
-                
+
                 // Clean up parent rooms
                 for (const [parentId, socketIds] of this.parentRooms.entries()) {
                     socketIds.delete(socket.id);
@@ -186,10 +186,10 @@ export class WebSocketService {
         socket.on('quiz:join', async (data: { attemptId: string }) => {
             const { attemptId } = data;
             const roomName = `quiz:${attemptId}`;
-            
+
             socket.join(roomName);
             socket.emit('quiz:joined', { attemptId, roomName });
-            
+
             logger.info(`Joined quiz room for attempt ${attemptId}`);
         });
     }
@@ -201,7 +201,7 @@ export class WebSocketService {
         socket.on('quiz:leave', (data: { attemptId: string }) => {
             const { attemptId } = data;
             const roomName = `quiz:${attemptId}`;
-            
+
             socket.leave(roomName);
             logger.info(`Left quiz room for attempt ${attemptId}`);
         });

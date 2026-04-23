@@ -43,8 +43,12 @@ export class ApiClient {
         }
         return null
     }
-    private buildHeaders(config?: RequestConfig): Record<string, string> {
+    private buildHeaders(config?: RequestConfig, isFormData = false): Record<string, string> {
         const headers = { ...this.defaultHeaders, ...config?.headers }
+
+        if (isFormData) {
+            delete headers['Content-Type']
+        }
 
         // Add auth token if required
         if (config?.auth !== false) {
@@ -119,7 +123,8 @@ export class ApiClient {
     // Make HTTP request
     async request<T>(endpoint: string, config?: RequestConfig): Promise<ApiResponse<T>> {
         const url = this.buildUrl(endpoint, config?.params)
-        const headers = this.buildHeaders(config)
+        const isFormData = config?.body instanceof FormData
+        const headers = this.buildHeaders(config, isFormData)
 
         const options: RequestInit = {
             method: config?.method || 'GET',
@@ -129,7 +134,7 @@ export class ApiClient {
 
         // Add body for POST/PUT/PATCH requests
         if (config?.body && config.method !== 'GET') {
-            options.body = JSON.stringify(config.body)
+            options.body = isFormData ? (config.body as FormData) : JSON.stringify(config.body)
         }
 
         try {

@@ -21,6 +21,26 @@ const booleanQueryParam = z
         return undefined;
     });
 
+const thumbnailSchema = z.string()
+    .trim()
+    .refine((value) => {
+        if (!value) {
+            return false;
+        }
+
+        try {
+            const url = new URL(value);
+            if (url.protocol === 'http:' || url.protocol === 'https:') {
+                return true;
+            }
+        } catch {
+            // Not an absolute URL, continue validating as relative asset path.
+        }
+
+        // Allow relative paths such as /images/course.jpg, images/course.jpg, ./images/course.jpg
+        return /^\.?\/?[A-Za-z0-9_\-./%]+$/.test(value);
+    }, 'Invalid thumbnail URL');
+
 // Helper function to create slug from title
 export function createSlug(title: string): string {
     return title
@@ -44,10 +64,7 @@ export const CreateCourseSchema = z.object({
     description: z.string()
         .min(10, 'Description must be at least 10 characters')
         .max(5000, 'Description must be at most 5000 characters'),
-    thumbnail: z.string()
-        .url('Invalid thumbnail URL')
-        .nullable()
-        .optional(),
+    thumbnail: thumbnailSchema.nullable().optional(),
     subject: z.nativeEnum(Subject, {
         errorMap: () => ({ message: 'Invalid subject' }),
     }),
@@ -88,10 +105,7 @@ export const UpdateCourseSchema = z.object({
         .min(10, 'Description must be at least 10 characters')
         .max(5000, 'Description must be at most 5000 characters')
         .optional(),
-    thumbnail: z.string()
-        .url('Invalid thumbnail URL')
-        .nullable()
-        .optional(),
+    thumbnail: thumbnailSchema.nullable().optional(),
     subject: z.nativeEnum(Subject, {
         errorMap: () => ({ message: 'Invalid subject' }),
     }).optional(),

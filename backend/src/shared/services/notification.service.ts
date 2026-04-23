@@ -45,6 +45,17 @@ interface WeeklyReportData {
     };
 }
 
+interface EntitlementExpiryNotificationData {
+  userId: string;
+  userEmail?: string | null;
+  studentName?: string | null;
+  courseTitle: string;
+  courseSlug?: string | null;
+  entitlementId: string;
+  expiresAt: Date;
+  daysRemaining: number;
+}
+
 export class NotificationService {
     async sendDailyProgressEmail(data: DailyReportData): Promise<void> {
         const html = `
@@ -414,6 +425,111 @@ export class NotificationService {
             logger.error('Failed to send shop purchase notification:', error);
         }
     }
+
+      /**
+       * Send in-app + email notification when an entitlement is close to expiry.
+       * Deduplicates per user/course/day to avoid scheduler spam.
+       */
+      async notifyEntitlementExpiring(payload: EntitlementExpiryNotificationData): Promise<{
+        inAppSent: boolean;
+        emailSent: boolean;
+        skipped: boolean;
+      }> {
+        const title = '⏳ Quyền học sắp hết hạn';
+        const expiresAtLabel = payload.expiresAt.toLocaleDateString('vi-VN');
+        const safeDaysRemaining = Math.max(0, payload.daysRemaining);
+        const message =
+          safeDaysRemaining > 0
+            ? `Quyền truy cập khóa "${payload.courseTitle}" sẽ hết hạn vào ${expiresAtLabel} (còn ${safeDaysRemaining} ngày).`
+            : `Quyền truy cập khóa "${payload.courseTitle}" sẽ hết hạn vào ${expiresAtLabel}.`;
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const existing = await prisma.notification.findFirst({
+          where: {
+            userId: payload.userId,
+            type: NotificationType.SYSTEM,
+            title,
+            message,
+            createdAt: {
+              gte: startOfDay,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (existing) {
+          return {
+            inAppSent: false,
+            emailSent: false,
+            skipped: true,
+          };
+        }
+
+        let emailSent = false;
+
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: payload.userId,
+              type: NotificationType.SYSTEM,
+              title,
+              message,
+              data: {
+                event: 'ENTITLEMENT_EXPIRING',
+                entitlementId: payload.entitlementId,
+                courseSlug: payload.courseSlug,
+                expiresAt: payload.expiresAt.toISOString(),
+                daysRemaining: safeDaysRemaining,
+              },
+            },
+          });
+
+          if (payload.userEmail) {
+            const learnerName = payload.studentName || 'bé';
+            const html = `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+              <h2 style="margin-bottom: 8px;">⏳ Nhắc nhở gói học sắp hết hạn</h2>
+              <p>Xin chào,</p>
+              <p>Quyền truy cập khóa <strong>${payload.courseTitle}</strong> của <strong>${learnerName}</strong> sẽ hết hạn vào <strong>${expiresAtLabel}</strong>.</p>
+              <p>Vui lòng gia hạn để tránh gián đoạn việc học.</p>
+            </div>
+            `;
+
+            const text = `Quyền truy cập khóa "${payload.courseTitle}" sẽ hết hạn vào ${expiresAtLabel}. Vui lòng gia hạn để tránh gián đoạn việc học.`;
+
+            try {
+              await emailService.sendEmail({
+                to: payload.userEmail,
+                subject: `⏳ Nhắc nhở: Gói học "${payload.courseTitle}" sắp hết hạn`,
+                html,
+                text,
+              });
+              emailSent = true;
+            } catch (error) {
+              logger.error('Failed to send entitlement expiry email:', error);
+            }
+          }
+
+          logger.info(`Entitlement expiry notification sent to user ${payload.userId}`);
+
+          return {
+            inAppSent: true,
+            emailSent,
+            skipped: false,
+          };
+        } catch (error) {
+          logger.error('Failed to send entitlement expiry notification:', error);
+          return {
+            inAppSent: false,
+            emailSent: false,
+            skipped: false,
+          };
+        }
+      }
 
     /**
      * Get unread notifications count

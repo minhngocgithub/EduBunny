@@ -4,12 +4,38 @@ import { CreateCourseDTO, UpdateCourseDTO, CourseQueryDTO, AdminListCoursesQuery
 import { successResponse, paginatedResponse } from '@/shared/utils/response.utils';
 
 export class CourseController {
+    async uploadThumbnail(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            if (!req.file) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Thumbnail file is required',
+                });
+                return;
+            }
+
+            const relativePath = `/uploads/courses/${req.file.filename}`;
+            const publicUrl = `${req.protocol}://${req.get('host')}${relativePath}`;
+
+            successResponse(res, {
+                data: {
+                    filename: req.file.filename,
+                    path: relativePath,
+                    url: publicUrl,
+                },
+                message: 'Thumbnail uploaded successfully',
+            }, 201);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async getCourses(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const query = req.query as unknown as CourseQueryDTO;
-            const studentId = req.user?.userId; // Optional: get student ID if authenticated
+            const userId = req.user?.userId;
 
-            const { courses, total } = await courseService.getCourses(query, studentId);
+            const { courses, total } = await courseService.getCourses(query, userId);
 
             paginatedResponse(res, {
                 items: courses,
@@ -26,9 +52,9 @@ export class CourseController {
     async getCourseById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params;
-            const studentId = req.user?.userId;
+            const userId = req.user?.userId;
 
-            const course = await courseService.getCourseById(id, studentId);
+            const course = await courseService.getCourseById(id, userId);
 
             if (!course) {
                 res.status(404).json({
@@ -50,9 +76,9 @@ export class CourseController {
     async getCourseBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { slug } = req.params;
-            const studentId = req.user?.userId;
+            const userId = req.user?.userId;
 
-            const course = await courseService.getCourseBySlug(slug, studentId);
+            const course = await courseService.getCourseBySlug(slug, userId);
 
             if (!course) {
                 res.status(404).json({

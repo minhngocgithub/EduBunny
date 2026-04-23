@@ -5,6 +5,7 @@ const customClass = {
   popup: 'rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-700',
   title: 'font-display text-2xl font-bold text-gray-800 dark:text-white',
   htmlContainer: 'text-gray-600 dark:text-slate-400 font-medium',
+  actions: 'flex justify-center gap-6 mt-6',
   confirmButton: 'px-8 py-3 bg-primary text-white font-bold rounded-2xl hover:scale-105 transition-all shadow-lg',
   cancelButton: 'px-8 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 font-bold rounded-2xl hover:scale-105 transition-all',
   denyButton: 'px-8 py-3 bg-red-500 text-white font-bold rounded-2xl hover:scale-105 transition-all shadow-lg',

@@ -1,8 +1,3 @@
-/**
- * Reward Controller
- * HTTP request handlers for reward operations
- */
-
 import { Request, Response } from 'express';
 import { rewardService } from './reward.service';
 import {
@@ -16,8 +11,6 @@ import {
 import { RewardCategory, RewardType, Currency, ShopItemType } from '@prisma/client';
 
 export class RewardController {
-  // ==================== Reward Endpoints ====================
-
   /**
    * POST /api/rewards/grant
    * Grant rewards to a student (typically called internally by other services)

@@ -94,7 +94,7 @@
               </div>
             </td>
             <td class="px-8 py-6">
-              <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-primary/10 text-primary">
+              <span class=" py-1 rounded-full text-[10px] font-black uppercase text-primary">
                 {{ getSubjectName(course.subject) }}
               </span>
             </td>
@@ -106,7 +106,7 @@
             <td class="px-8 py-6 font-medium text-slate-500 dark:text-slate-400">{{ course.enrollmentCount }}</td>
             <td class="px-8 py-6">
               <span
-                :class="`px-3 py-1 rounded-full text-[10px] font-black uppercase ${course.isPublished ? 'bg-success/10 text-success' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`">
+                :class="`py-1 rounded-full text-[10px] font-black uppercase ${course.isPublished ? ' text-success' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`">
                 {{ course.isPublished ? 'Công khai' : 'Nháp' }}
               </span>
             </td>
@@ -190,7 +190,7 @@
                 </div>
 
                 <!-- Body -->
-                <div class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
+                <div class="flex-1 px-8 py-6 overflow-y-auto custom-scrollbar">
                   <div class="space-y-5">
                     <!-- Tên khóa học -->
                     <div>
@@ -219,11 +219,48 @@
                     <div>
                       <label class="flex items-center gap-2 mb-2 text-sm font-bold text-slate-700 dark:text-slate-300">
                         <span class="text-lg material-symbols-outlined text-primary">image</span>
-                        Ảnh bìa (URL)
+                        Ảnh bìa
                       </label>
-                      <input type="url" v-model="courseForm.thumbnail" class="w-full text-base input"
-                        placeholder="https://example.com/image.jpg" />
-                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 ml-1">Để trống nếu chưa có ảnh</p>
+                      <div class="flex gap-2">
+                        <input type="text" v-model="courseForm.thumbnail" class="flex-1 w-full text-base input"
+                          placeholder="https://example.com/image.jpg" />
+                        <button
+                          type="button"
+                          @click="openThumbnailFileDialog"
+                          :disabled="isUploadingThumbnail"
+                          class="inline-flex items-center justify-center px-3 transition-all border rounded-xl border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Chọn ảnh từ máy"
+                        >
+                          <span class="text-xl material-symbols-outlined" :class="{ 'animate-spin': isUploadingThumbnail }">
+                            {{ isUploadingThumbnail ? 'progress_activity' : 'folder_open' }}
+                          </span>
+                        </button>
+                      </div>
+
+                      <input
+                        ref="courseThumbnailInputRef"
+                        type="file"
+                        class="hidden"
+                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                        @change="handleThumbnailFileChange"
+                      />
+
+                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 ml-1">
+                        Nhấn icon folder để chọn ảnh từ máy (JPG/PNG/WEBP/GIF, tối đa 5MB)
+                      </p>
+
+                      <div v-if="courseForm.thumbnail" class="mt-3 overflow-hidden border rounded-xl border-slate-200 dark:border-slate-700">
+                        <img
+                          v-if="courseThumbnailPreviewSrc"
+                          :src="courseThumbnailPreviewSrc"
+                          alt="Xem trước ảnh bìa"
+                          class="object-cover w-full h-40"
+                          @error="handleCourseThumbnailPreviewError"
+                        />
+                        <div v-else class="flex items-center justify-center w-full h-40 px-4 text-xs text-center text-slate-500 bg-slate-50 dark:bg-slate-800 dark:text-slate-400">
+                          Không thể xem trước ảnh với URL hiện tại. Bạn vẫn có thể lưu và thử mở lại, hoặc chọn lại ảnh từ icon folder.
+                        </div>
+                      </div>
                     </div>
 
                     <!-- Môn học & Lớp -->
@@ -285,7 +322,7 @@
                           <span class="text-xs font-normal text-slate-500 dark:text-slate-400">(Tự động tính)</span>
                         </label>
                         <input type="number" :value="courseForm.duration" disabled
-                          class="w-full text-base input bg-slate-50 dark:bg-slate-800 cursor-not-allowed"
+                          class="w-full text-base cursor-not-allowed input bg-slate-50 dark:bg-slate-800"
                           placeholder="Sẽ tự động tính từ các bài giảng" />
                         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                           💡 Thời lượng = Tổng thời gian các bài giảng
@@ -338,7 +375,7 @@
                       class="px-6 py-3 font-bold transition-all bg-white border rounded-xl text-slate-600 dark:text-slate-400 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700">
                       Hủy
                     </button>
-                    <button @click="saveCourse" :disabled="!isFormValid"
+                    <button @click="saveCourse" :disabled="!isFormValid || isUploadingThumbnail"
                       class="px-6 py-3 font-bold text-white transition-all rounded-xl bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95">
                       <span class="flex items-center gap-2">
                         <span class="text-xl material-symbols-outlined">{{ isEditMode ? 'check_circle' : 'add_circle'
@@ -400,7 +437,7 @@
                 </div>
 
                 <!-- Body -->
-                <div class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
+                <div class="flex-1 px-8 py-6 overflow-y-auto custom-scrollbar">
                   <div v-if="loadingLectures" class="space-y-4">
                     <div v-for="i in 3" :key="i" class="flex items-center gap-4 p-4 animate-pulse bg-slate-50 dark:bg-slate-800 rounded-xl">
                       <div class="rounded-lg size-12 bg-slate-200 dark:bg-slate-700"></div>
@@ -502,7 +539,7 @@
                 </div>
 
                 <!-- Body -->
-                <div class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
+                <div class="flex-1 px-8 py-6 overflow-y-auto custom-scrollbar">
                   <div class="space-y-5">
                     <!-- Tiêu đề -->
                     <div>
@@ -535,7 +572,7 @@
                           placeholder="https://youtube.com/watch?v=..." />
                         <button @click="fetchYouTubeInfo" type="button"
                           :disabled="!lectureForm.videoUrl || isFetchingYouTubeInfo"
-                          class="flex items-center gap-2 px-4 py-2 font-bold text-white transition-all rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed shadow-lg shadow-red-500/30">
+                          class="flex items-center gap-2 px-4 py-2 font-bold text-white transition-all shadow-lg rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed shadow-red-500/30">
                           <span class="text-xl material-symbols-outlined" :class="{ 'animate-spin': isFetchingYouTubeInfo }">
                             {{ isFetchingYouTubeInfo ? 'refresh' : 'download' }}
                           </span>
@@ -622,6 +659,7 @@ definePageMeta({
 
 const { apiClient } = useApiClient();
 const { toast, confirmDelete, success, error } = useSweetAlert();
+const runtimeConfig = useRuntimeConfig();
 
 const showCourseModal = ref(false);
 const isEditMode = ref(false);
@@ -642,6 +680,20 @@ const searchQuery = ref('');
 const subjectFilter = ref<Subject | ''>('');
 const gradeFilter = ref<Grade | ''>('');
 const publishedFilter = ref<'true' | 'false' | ''>(''); // Use string to match HTML select value
+const courseThumbnailInputRef = ref<HTMLInputElement | null>(null);
+const isUploadingThumbnail = ref(false);
+
+const COURSE_THUMBNAIL_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_THUMBNAIL_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
+
+const thumbnailPreviewIndex = ref(0);
+const isThumbnailPreviewFailed = ref(false);
 
 const lectureForm = ref({
   title: '',
@@ -662,6 +714,113 @@ const courseForm = ref({
   duration: 0, // Auto-calculated from lectures
   isPublished: false,
   isFree: true,
+});
+
+const apiBaseOrigin = computed(() => {
+  try {
+    return new URL(runtimeConfig.public.apiBaseUrl || 'http://localhost:3001/api').origin;
+  } catch {
+    if (process.client) {
+      return window.location.origin;
+    }
+
+    return 'http://localhost:3001';
+  }
+});
+
+const normalizeCourseThumbnailValue = (thumbnail: string | null | undefined): string | null => {
+  if (typeof thumbnail !== 'string') {
+    return null;
+  }
+
+  const rawValue = thumbnail.trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  if (rawValue.startsWith('data:image/')) {
+    return rawValue;
+  }
+
+  if (rawValue.startsWith('/uploads/')) {
+    return `${apiBaseOrigin.value}${rawValue}`;
+  }
+
+  if (rawValue.startsWith('uploads/')) {
+    return `${apiBaseOrigin.value}/${rawValue}`;
+  }
+
+  try {
+    const parsedUrl = new URL(rawValue);
+    return parsedUrl.toString();
+  } catch {
+    return rawValue;
+  }
+};
+
+const courseThumbnailPreviewCandidates = computed(() => {
+  const rawThumbnail = courseForm.value.thumbnail?.trim();
+  if (!rawThumbnail) {
+    return [] as string[];
+  }
+
+  const candidates: string[] = [];
+  const uniqueCandidates = new Set<string>();
+  const addCandidate = (value?: string | null) => {
+    if (!value) {
+      return;
+    }
+
+    const cleanedValue = value.trim();
+    if (!cleanedValue || uniqueCandidates.has(cleanedValue)) {
+      return;
+    }
+
+    uniqueCandidates.add(cleanedValue);
+    candidates.push(cleanedValue);
+  };
+
+  const normalizedValue = normalizeCourseThumbnailValue(rawThumbnail);
+  if (!normalizedValue) {
+    return [] as string[];
+  }
+
+  if (normalizedValue.startsWith('data:image/')) {
+    addCandidate(normalizedValue);
+    return candidates;
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedValue);
+    addCandidate(parsedUrl.toString());
+
+    if (parsedUrl.pathname.startsWith('/uploads/')) {
+      addCandidate(`${apiBaseOrigin.value}${parsedUrl.pathname}`);
+    }
+
+    if (process.client && (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1')) {
+      const browserHost = window.location.hostname;
+      if (browserHost && browserHost !== parsedUrl.hostname) {
+        addCandidate(`${parsedUrl.protocol}//${browserHost}${parsedUrl.port ? `:${parsedUrl.port}` : ''}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`);
+      }
+    }
+  } catch {
+    if (normalizedValue.startsWith('/')) {
+      addCandidate(`${apiBaseOrigin.value}${normalizedValue}`);
+    } else {
+      addCandidate(`${apiBaseOrigin.value}/${normalizedValue.replace(/^\//, '')}`);
+    }
+  }
+
+  return candidates;
+});
+
+const courseThumbnailPreviewSrc = computed(() => {
+  if (isThumbnailPreviewFailed.value) {
+    return '';
+  }
+
+  return courseThumbnailPreviewCandidates.value[thumbnailPreviewIndex.value] || '';
 });
 
 const pagination = ref({
@@ -764,7 +923,7 @@ const openEditModal = (course: AdminCourseListItem) => {
   courseForm.value = {
     title: course.title,
     description: course.description || '',
-    thumbnail: course.thumbnail,
+    thumbnail: normalizeCourseThumbnailValue(course.thumbnail),
     subject: course.subject,
     grade: course.grade,
     level: course.level,
@@ -809,6 +968,73 @@ const getGradeName = (grade: Grade) => {
   return gradeNum;
 };
 
+const openThumbnailFileDialog = () => {
+  courseThumbnailInputRef.value?.click();
+};
+
+const resetCourseThumbnailPreview = () => {
+  thumbnailPreviewIndex.value = 0;
+  isThumbnailPreviewFailed.value = false;
+};
+
+const handleCourseThumbnailPreviewError = () => {
+  if (thumbnailPreviewIndex.value < courseThumbnailPreviewCandidates.value.length - 1) {
+    thumbnailPreviewIndex.value += 1;
+    return;
+  }
+
+  isThumbnailPreviewFailed.value = true;
+};
+
+const uploadCourseThumbnail = async (file: File) => {
+  if (!ALLOWED_THUMBNAIL_MIME_TYPES.has(file.type)) {
+    toast('Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF', 'error');
+    return;
+  }
+
+  if (file.size > COURSE_THUMBNAIL_MAX_SIZE_BYTES) {
+    toast('Dung lượng ảnh tối đa là 5MB', 'error');
+    return;
+  }
+
+  isUploadingThumbnail.value = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('thumbnail', file);
+
+    const response = await apiClient.post<{ url?: string; path?: string }>(
+      API_ENDPOINTS.COURSE.ADMIN.UPLOAD_THUMBNAIL,
+      formData
+    );
+
+    const uploadedThumbnail = response.data?.url || response.data?.path;
+    if (response.success && uploadedThumbnail) {
+      courseForm.value.thumbnail = normalizeCourseThumbnailValue(uploadedThumbnail);
+      toast('Tải ảnh bìa lên thành công', 'success');
+    }
+  } catch (error: any) {
+    toast(error.message || 'Không thể tải ảnh bìa lên', 'error');
+  } finally {
+    isUploadingThumbnail.value = false;
+  }
+};
+
+const handleThumbnailFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  try {
+    await uploadCourseThumbnail(file);
+  } finally {
+    input.value = '';
+  }
+};
+
 const saveCourse = async () => {
   if (!isFormValid.value) {
     toast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
@@ -817,10 +1043,15 @@ const saveCourse = async () => {
 
   try {
     // Prepare payload without duration (auto-calculated on backend)
-    const { duration, ...payload } = courseForm.value;
-    
-    // Debug: Log payload
-    console.log('📤 Creating course with payload:', payload);
+    // and normalize optional string fields to satisfy backend validation.
+    const normalizedThumbnail = normalizeCourseThumbnailValue(courseForm.value.thumbnail);
+
+    const { duration, ...payload } = {
+      ...courseForm.value,
+      title: courseForm.value.title.trim(),
+      description: courseForm.value.description.trim(),
+      thumbnail: normalizedThumbnail ? normalizedThumbnail : null,
+    };
     
     if (isEditMode.value && editingCourseId.value) {
       // Update existing course
@@ -865,6 +1096,13 @@ const saveCourse = async () => {
     }
   }
 };
+
+watch(
+  () => [courseForm.value.thumbnail, courseThumbnailPreviewCandidates.value.length],
+  () => {
+    resetCourseThumbnailPreview();
+  }
+);
 
 const deleteCourse = async (id: string) => {
   const result = await confirmDelete(
