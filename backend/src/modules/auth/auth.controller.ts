@@ -4,6 +4,53 @@ import { authService } from './auth.service';
 import { RegisterInput } from './auth.types';
 
 export class AuthController {
+  private getFrontendUrl(): string {
+    return process.env.FRONTEND_URL || 'http://localhost:3000';
+  }
+
+  private buildOAuthFailedRedirect(frontendUrl: string, reason: string, debugMessage?: string): string {
+    let redirectUrl = `${frontendUrl}/auth?error=auth_failed&reason=${encodeURIComponent(reason)}`;
+
+    // Show debug details only in non-production environments.
+    if (process.env.NODE_ENV !== 'production' && debugMessage) {
+      redirectUrl += `&debug=${encodeURIComponent(debugMessage.slice(0, 240))}`;
+    }
+
+    return redirectUrl;
+  }
+
+  private getOAuthFailureReason(err: Error | null, oauthQueryError?: string): string {
+    if (oauthQueryError) {
+      return oauthQueryError;
+    }
+
+    if (!err) {
+      return 'unknown_error';
+    }
+
+    const message = err.message.toLowerCase();
+
+    if (
+      message.includes('failed to obtain access token') ||
+      message.includes('tokenerror') ||
+      message.includes('invalid_grant') ||
+      message.includes('invalid_client') ||
+      (message.includes('oauth') && message.includes('token'))
+    ) {
+      return 'token_exchange_failed';
+    }
+
+    if (message.includes('already linked')) {
+      return 'google_account_already_linked';
+    }
+
+    if (message.includes('no email')) {
+      return 'google_email_missing';
+    }
+
+    return 'passport_auth_error';
+  }
+
   async register(req: Request, res: Response, next: NextFunction) {
     try {
       const input: RegisterInput = req.body;
@@ -60,25 +107,59 @@ export class AuthController {
   }
 
   googleCallback(req: Request, res: Response, next: NextFunction) {
+    const frontendUrl = this.getFrontendUrl();
+    const oauthQueryError = typeof req.query.error === 'string' ? req.query.error : undefined;
+    const oauthErrorDescription =
+      typeof req.query.error_description === 'string'
+        ? req.query.error_description
+        : undefined;
+
+    if (oauthQueryError) {
+      const reason = this.getOAuthFailureReason(null, oauthQueryError);
+      console.error('Google OAuth query error:', {
+        error: oauthQueryError,
+        errorDescription: oauthErrorDescription,
+      });
+      const redirectUrl = this.buildOAuthFailedRedirect(
+        frontendUrl,
+        reason,
+        oauthErrorDescription || oauthQueryError
+      );
+      return res.redirect(redirectUrl);
+    }
+
     passport.authenticate('google', { session: false }, async (err: Error | null, expressUser: Express.User | false) => {
       if (err || !expressUser) {
-        return res.redirect(`${process.env.FRONTEND_URL}/auth?error=auth_failed`);
+        const reason = this.getOAuthFailureReason(err, oauthQueryError);
+        const debugMessage = err?.message || 'No user returned from Passport Google callback';
+        console.error('Google OAuth passport authentication failed:', {
+          reason,
+          error: debugMessage,
+        });
+        const redirectUrl = this.buildOAuthFailedRedirect(frontendUrl, reason, debugMessage);
+        return res.redirect(redirectUrl);
       }
 
       try {
         const user = await authService.getUserById(expressUser.userId);
         
         if (!user) {
-          return res.redirect(`${process.env.FRONTEND_URL}/auth?error=user_not_found`);
+          return res.redirect(`${frontendUrl}/auth?error=user_not_found`);
         }
 
         const result = await authService.handleOAuthLogin(user);
 
         // QUAN TRỌNG: Redirect đúng đường dẫn
-        res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${result.accessToken}&refreshToken=${result.refreshToken}`);
+        res.redirect(`${frontendUrl}/auth/callback?token=${result.accessToken}&refreshToken=${result.refreshToken}`);
       } catch (error) {
         console.error('Google OAuth callback error:', error);
-        return res.redirect(`${process.env.FRONTEND_URL}/auth?error=auth_failed`);
+        const debugMessage = error instanceof Error ? error.message : 'Unknown OAuth callback processing error';
+        const redirectUrl = this.buildOAuthFailedRedirect(
+          frontendUrl,
+          'callback_processing_failed',
+          debugMessage
+        );
+        return res.redirect(redirectUrl);
       }
     })(req, res, next);
   }

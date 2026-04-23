@@ -85,7 +85,7 @@ class QuizSessionService {
         answer: string
     ): Promise<void> {
         const session = await this.getSession(attemptId);
-        
+
         if (!session) {
             throw new Error('Quiz session not found');
         }
@@ -129,7 +129,7 @@ class QuizSessionService {
         totalQuestions: number
     ): Promise<void> {
         const session = await this.getSession(attemptId);
-        
+
         if (!session) {
             throw new Error('Quiz session not found');
         }
@@ -159,7 +159,7 @@ class QuizSessionService {
      */
     async isSessionExpired(attemptId: string): Promise<boolean> {
         const session = await this.getSession(attemptId);
-        
+
         if (!session) {
             return true;
         }
@@ -172,7 +172,7 @@ class QuizSessionService {
      */
     async getRemainingTime(attemptId: string): Promise<number> {
         const session = await this.getSession(attemptId);
-        
+
         if (!session) {
             return 0;
         }
@@ -249,7 +249,7 @@ class QuizSessionService {
     async cleanupExpiredSessions(): Promise<number> {
         const pattern = 'quiz:session:*';
         const keys = await redisService.keys(pattern);
-        
+
         let deletedCount = 0;
         for (const key of keys) {
             const ttl = await redisService.ttl(key);

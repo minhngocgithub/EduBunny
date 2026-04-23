@@ -62,7 +62,6 @@
               ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
               : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-2 border-gray-200 dark:border-slate-700'"
             class="flex items-center gap-2 px-5 py-3 text-base font-bold transition-all rounded-2xl hover:scale-105 active:scale-95">
-            <span class="text-2xl">📚</span>
             <span>Tất cả</span>
           </button>
           <button v-for="subject in subjects" :key="subject.value" @click="selectedSubject = subject.value"
@@ -70,7 +69,6 @@
               ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
               : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-2 border-gray-200 dark:border-slate-700'"
             class="flex items-center gap-2 px-5 py-3 text-base font-bold transition-all rounded-2xl hover:scale-105 active:scale-95">
-            <span class="text-2xl">{{ subject.icon }}</span>
             <span>{{ subject.label }}</span>
           </button>
         </div>
@@ -120,7 +118,7 @@
           <div v-for="course in paginatedCourses" :key="course.id" @click="handleCourseClick(course)"
             class="overflow-hidden transition-all duration-300 border-2 border-gray-200 cursor-pointer group dark:border-slate-700 bg-white/80 dark:bg-slate-800 rounded-3xl hover:shadow-2xl hover:-translate-y-2 hover:border-orange-500"
             :class="{
-              'opacity-70': !course.isPublished,
+              'opacity-70': course.isPublished === false,
             }">
             <!-- Course Thumbnail -->
             <div
@@ -132,7 +130,7 @@
               </div>
 
               <!-- Lock Overlay for Unpublished Courses -->
-              <div v-if="!course.isPublished"
+              <div v-if="course.isPublished === false"
                 class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/40 backdrop-blur-sm">
                 <span class="text-6xl text-white material-symbols-outlined drop-shadow-2xl">
                   lock
@@ -158,20 +156,24 @@
                 </span>
               </div>
 
-              <!-- Progress Bar (if enrolled) -->
-              <div v-if="course.isEnrolled" class="absolute bottom-0 left-0 right-0 h-2 bg-white/30">
-                <div class="h-full bg-gradient-to-r from-orange-500 to-orange-600" :style="{ width: '60%' }"></div>
+              <!-- Progress Bar (if has real progress) -->
+              <div v-if="hasLearningProgress(course)" class="absolute bottom-0 left-0 right-0 h-2 bg-white/30">
+                <div class="h-full bg-gradient-to-r from-orange-500 to-orange-600" :style="{ width: `${getCourseProgress(course)}%` }"></div>
               </div>
             </div>
 
             <!-- Course Content -->
             <div class="p-5">
               <!-- Continue/Enroll Button -->
-              <button v-if="course.isEnrolled"
+              <button v-if="course.isEnrolled && hasLearningProgress(course)"
                 class="w-full px-4 py-2.5 mb-3 text-sm font-bold text-white transition-all rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:shadow-lg hover:shadow-orange-500/50">
-                Tiếp tục học • 60% hoàn thành
+                Tiếp tục học • {{ getCourseProgress(course) }}% hoàn thành
               </button>
-              <button v-else-if="course.isPublished"
+              <button v-else-if="course.isEnrolled"
+                class="w-full px-4 py-2.5 mb-3 text-sm font-bold text-white transition-all rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:shadow-lg hover:shadow-orange-500/50">
+                Vào học ngay
+              </button>
+              <button v-else-if="course.isPublished !== false"
                 class="w-full px-4 py-2.5 mb-3 text-sm font-bold transition-all border-2 border-orange-500 rounded-full text-orange-600 hover:bg-orange-500 hover:text-white dark:text-orange-400">
                 Đăng ký học
               </button>
@@ -221,8 +223,8 @@
             <button v-for="page in visiblePages" :key="page" @click="currentPage = page"
               class="flex items-center justify-center text-base font-bold transition-all border-2 rounded-2xl size-12"
               :class="page === currentPage
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-500 shadow-lg shadow-orange-500/30'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-orange-500'
+                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-500 shadow-lg shadow-orange-500/30'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-orange-500'
                 ">
               {{ page }}
             </button>
@@ -306,12 +308,12 @@ const itemsPerPage = 12;
 
 // Subject options
 const subjects = [
-  { value: 'SCIENCE' as Subject, label: 'Khoa học', icon: '🔬' },
-  { value: 'MATH' as Subject, label: 'Toán học', icon: '🔢' },
-  { value: 'ART' as Subject, label: 'Mỹ thuật', icon: '🎨' },
-  { value: 'ENGLISH' as Subject, label: 'Tiếng Anh', icon: '🗣️' },
-  { value: 'VIETNAMESE' as Subject, label: 'Tiếng Việt', icon: '📖' },
-  { value: 'MUSIC' as Subject, label: 'Âm nhạc', icon: '🎵' },
+  { value: 'SCIENCE' as Subject, label: 'Khoa học', },
+  { value: 'MATH' as Subject, label: 'Toán học', },
+  { value: 'ART' as Subject, label: 'Mỹ thuật' },
+  { value: 'ENGLISH' as Subject, label: 'Tiếng Anh' },
+  { value: 'VIETNAMESE' as Subject, label: 'Tiếng Việt' },
+  { value: 'MUSIC' as Subject, label: 'Âm nhạc' },
 ];
 
 // Grade options
@@ -406,7 +408,6 @@ const fetchCourses = async () => {
     );
 
     if (response.success && response.data) {
-      // Backend returns array directly in data, not data.items
       courses.value = Array.isArray(response.data) ? response.data : [];
       console.log('✅ Loaded courses:', courses.value.length);
     } else {
@@ -422,33 +423,33 @@ const fetchCourses = async () => {
 };
 
 const handleCourseClick = (course: CourseListItem) => {
-  if (!course.isPublished) {
+  if (course.isPublished === false) {
     toast('Khóa học sắp được ra mắt. Hãy quay lại sau nhé! 🎉', 'info');
     return;
   }
 
   // Navigate to course detail page
-  router.push(`/courses/${course.slug}`);
+  router.push(`/courses/${course.id}`);
 };
 
 const getSectionTitle = () => {
   if (selectedSubject.value && selectedGrade.value) {
     const subject = subjects.find(s => s.value === selectedSubject.value);
     const grade = grades.find(g => g.value === selectedGrade.value);
-    return `${subject?.icon} ${subject?.label} - ${grade?.label}`;
+    return `${subject?.label} - ${grade?.label}`;
   }
   if (selectedSubject.value) {
     const subject = subjects.find(s => s.value === selectedSubject.value);
-    return `${subject?.icon} ${subject?.label}`;
+    return `${subject?.label}`;
   }
   if (selectedGrade.value) {
     const grade = grades.find(g => g.value === selectedGrade.value);
-    return `📚 Khóa học ${grade?.label}`;
+    return `Khóa học ${grade?.label}`;
   }
   if (searchQuery.value.trim()) {
-    return `🔍 Kết quả tìm kiếm: "${searchQuery.value}"`;
+    return `Kết quả tìm kiếm: "${searchQuery.value}"`;
   }
-  return '🌈 Tất cả khóa học';
+  return 'Tất cả khóa học';
 };
 
 // Helper functions
@@ -493,6 +494,18 @@ const getGradeName = (grade: Grade): string => {
     GRADE_5: 'Lớp 5',
   };
   return names[grade] || grade;
+};
+
+const getCourseProgress = (course: CourseListItem): number => {
+  if (typeof course.learningProgress !== 'number') {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(course.learningProgress)));
+};
+
+const hasLearningProgress = (course: CourseListItem): boolean => {
+  return getCourseProgress(course) > 0;
 };
 
 const formatDuration = (minutes: number): string => {

@@ -2,19 +2,20 @@ import { Request, Response, NextFunction } from 'express';
 import { progressService } from './progress.service';
 import { TrackViewingDTO } from './progress.dto';
 import { successResponse } from '@/shared/utils/response.utils';
+import { courseAccessService } from '../course/course-access.service';
 
 export class ProgressController {
+    private async resolveStudentId(req: Request): Promise<string> {
+        if (!req.user?.userId) {
+            throw new Error('Unauthorized');
+        }
+
+        return courseAccessService.requireStudentIdByUserId(req.user.userId);
+    }
+
     async getProgressSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            if (!req.user) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-                return;
-            }
-
-            const studentId = req.user.userId;
+            const studentId = await this.resolveStudentId(req);
             const summary = await progressService.getProgressSummary(studentId);
 
             successResponse(res, {
@@ -28,15 +29,7 @@ export class ProgressController {
 
     async getCourseProgress(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            if (!req.user) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-                return;
-            }
-
-            const studentId = req.user.userId;
+            const studentId = await this.resolveStudentId(req);
             const { courseId } = req.params;
 
             const progress = await progressService.getCourseProgress(studentId, courseId);
@@ -60,15 +53,7 @@ export class ProgressController {
 
     async getLectureProgress(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            if (!req.user) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-                return;
-            }
-
-            const studentId = req.user.userId;
+            const studentId = await this.resolveStudentId(req);
             const { lectureId } = req.params;
 
             const progress = await progressService.getLectureProgress(studentId, lectureId);
@@ -92,15 +77,7 @@ export class ProgressController {
 
     async trackViewing(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            if (!req.user) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-                return;
-            }
-
-            const studentId = req.user.userId;
+            const studentId = await this.resolveStudentId(req);
             const input: TrackViewingDTO = req.body;
 
             await progressService.trackViewing(studentId, input);
@@ -115,15 +92,7 @@ export class ProgressController {
 
     async markAsCompleted(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            if (!req.user) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-                return;
-            }
-
-            const studentId = req.user.userId;
+            const studentId = await this.resolveStudentId(req);
             const { lectureId } = req.params;
 
             await progressService.markAsCompleted(studentId, lectureId);
@@ -138,15 +107,7 @@ export class ProgressController {
 
     async getStatistics(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            if (!req.user) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-                return;
-            }
-
-            const studentId = req.user.userId;
+            const studentId = await this.resolveStudentId(req);
             const statistics = await progressService.getStatistics(studentId);
 
             successResponse(res, {

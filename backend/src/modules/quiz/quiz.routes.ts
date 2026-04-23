@@ -15,7 +15,6 @@ import {
 } from './quiz.dto';
 import {
   authMiddleware,
-  optionalAuthMiddleware,
   requireAdmin,
   requireStudent,
 } from '@/shared/config/passport.config';
@@ -142,14 +141,16 @@ router.post(
 // Public / authenticated read routes
 router.get(
   '/course/:courseId',
-  optionalAuthMiddleware,
+  authMiddleware,
+  requireStudent,
   validateParams(CourseIdParamSchema),
   quizController.getQuizzesByCourse.bind(quizController)
 );
 
 router.get(
   '/:id',
-  optionalAuthMiddleware,
+  authMiddleware,
+  requireStudent,
   validateParams(QuizIdParamSchema),
   quizController.getQuizById.bind(quizController)
 );

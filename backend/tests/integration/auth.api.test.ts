@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '@/server';
+import app from '../../src/server';
 import bcrypt from 'bcryptjs';
 import { generateAccessToken } from '@/shared/utils/jwt.utils';
 import { emailService } from '@/shared/services/email.service';

@@ -9,6 +9,8 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import { createServer } from 'http';
+import fs from 'fs';
+import path from 'path';
 
 import './shared/config/google-passport.config';
 import { logger } from './shared/utils/logger.utils';
@@ -28,14 +30,21 @@ import youtubeRoutes from './modules/youtube/youtube.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import leaderboardRoutes from './modules/leaderboard/leaderboard.routes';
 import quizRoutes from './modules/quiz/quiz.routes';
+import paymentRoutes from './modules/payment/payment.routes';
+import { paymentService } from './modules/payment/payment.service';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const API = process.env.API_PREFIX || '/api';
+const uploadsDir = path.resolve(process.cwd(), 'uploads');
 
 const httpServer = createServer(app);
 
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: {
+        policy: 'cross-origin',
+    },
+}));
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
     credentials: true,
@@ -50,6 +59,12 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+app.use('/uploads', express.static(uploadsDir));
 
 app.use(passport.initialize());
 
@@ -70,6 +85,7 @@ app.use(`${API}/youtube`, youtubeRoutes);
 app.use(`${API}/admin`, adminRoutes);
 app.use(`${API}/leaderboard`, leaderboardRoutes);
 app.use(`${API}/quizzes`, quizRoutes);
+app.use(`${API}/payments`, paymentRoutes);
 
 interface CustomError extends Error {
     status?: number;
@@ -85,6 +101,8 @@ app.use((err: CustomError, _req: express.Request, res: express.Response, _next: 
 
 const shutdown = async (signal: string) => {
     logger.info(`${signal} received: closing HTTP server`);
+    paymentService.stopReconciliationScheduler();
+    paymentService.stopLifecycleScheduler();
     httpServer.close(async () => {
         await redisService.disconnect();
         logger.info('HTTP server closed');
@@ -109,6 +127,8 @@ const start = async () => {
     try {
         await redisService.connect();
         websocketService.initialize(httpServer);
+        paymentService.startReconciliationScheduler();
+        paymentService.startLifecycleScheduler();
         httpServer.listen(PORT, () => {
             logger.info(`Server running on http://localhost:${PORT}`);
             logger.info(`API: http://localhost:${PORT}${API}`);

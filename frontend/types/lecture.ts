@@ -25,6 +25,8 @@ export interface LectureListItem {
   isCompleted?: boolean
   watchedSeconds?: number
   completionRate?: number
+  canPlay?: boolean
+  isLocked?: boolean
 }
 
 export interface CreateLectureInput {

@@ -4,6 +4,7 @@ import { rewardService } from '@modules/reward/reward.service';
 import { quizSessionService } from '@modules/quiz/quiz-session.service';
 import { redisService } from '@shared/services/redis.service';
 import { RewardTrigger } from '@modules/reward/reward.types';
+import { courseAccessService } from '@modules/course/course-access.service';
 
 jest.mock('@prisma/client', () => {
   const mockPrisma = {
@@ -59,6 +60,14 @@ jest.mock('@shared/services/redis.service', () => ({
   },
 }));
 
+jest.mock('@modules/course/course-access.service', () => ({
+  courseAccessService: {
+    requireStudentIdByUserId: jest.fn(),
+    canStartQuizByCourseId: jest.fn(),
+    canSubmitQuizByCourseId: jest.fn(),
+  },
+}));
+
 describe('QuizService', () => {
   let service: QuizService;
   const prismaMock = new PrismaClient() as any;
@@ -68,7 +77,9 @@ describe('QuizService', () => {
     jest.clearAllMocks();
     service = new QuizService();
 
-    prismaMock.student.findUnique.mockResolvedValue({ id: 'student-1' });
+    (courseAccessService.requireStudentIdByUserId as jest.Mock).mockResolvedValue('student-1');
+    (courseAccessService.canStartQuizByCourseId as jest.Mock).mockResolvedValue(true);
+    (courseAccessService.canSubmitQuizByCourseId as jest.Mock).mockResolvedValue(true);
     (redisService.getClient as jest.Mock).mockReturnValue({ set: lockSet });
     lockSet.mockResolvedValue('OK');
     (redisService.delete as jest.Mock).mockResolvedValue(1);
@@ -83,7 +94,6 @@ describe('QuizService', () => {
       duration: 30,
       questions: [{ id: 'q1', points: 5 }],
     });
-    prismaMock.enrollment.findUnique.mockResolvedValue({ id: 'enroll-1' });
     prismaMock.quizAttempt.count.mockResolvedValue(0);
     prismaMock.quizAttempt.findFirst.mockResolvedValue(null);
     prismaMock.quizAttempt.create.mockResolvedValue({ id: 'attempt-1' });
@@ -97,7 +107,7 @@ describe('QuizService', () => {
     expect(result.alreadyInProgress).toBe(false);
   });
 
-  it('rejects start attempt when student is not enrolled', async () => {
+  it('rejects start attempt when student has no active access', async () => {
     prismaMock.quiz.findUnique.mockResolvedValue({
       id: 'quiz-1',
       courseId: 'course-1',
@@ -106,10 +116,10 @@ describe('QuizService', () => {
       duration: 30,
       questions: [],
     });
-    prismaMock.enrollment.findUnique.mockResolvedValue(null);
+    (courseAccessService.canStartQuizByCourseId as jest.Mock).mockResolvedValue(false);
 
     await expect(service.startAttempt('quiz-1', 'user-1')).rejects.toThrow(
-      'Student is not enrolled in this course'
+      'Active entitlement required for this quiz'
     );
   });
 

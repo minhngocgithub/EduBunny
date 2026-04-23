@@ -84,6 +84,7 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/courses/${id}`,
     ADMIN: {
       LIST: '/courses/admin/all',
+      UPLOAD_THUMBNAIL: '/courses/upload-thumbnail',
     },
   },
   // Lecture
@@ -127,5 +128,13 @@ export const API_ENDPOINTS = {
     SUBMIT: (id: string) => `/quizzes/${id}/submit`,
     SAVE_ANSWER: (attemptId: string) => `/quizzes/attempts/${attemptId}/answers`,
     ATTEMPT_RESULT: (attemptId: string) => `/quizzes/attempts/${attemptId}`,
+  },
+  PROGRESS: {
+    SUMMARY: '/progress',
+    COURSE: (courseId: string) => `/progress/courses/${courseId}`,
+    LECTURE: (lectureId: string) => `/progress/lectures/${lectureId}`,
+    TRACK_LECTURE: (lectureId: string) => `/progress/lectures/${lectureId}/track`,
+    COMPLETE_LECTURE: (lectureId: string) => `/progress/lectures/${lectureId}/complete`,
+    STATISTICS: '/progress/statistics',
   },
 } as const

@@ -7,9 +7,12 @@ export class LectureController {
     async getLecturesByCourse(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { courseId } = req.params;
-            const studentId = req.user?.userId;
+            const userId = req.user?.userId;
+            const userRole = req.user?.role;
 
-            const lectures = await lectureService.getLecturesByCourse(courseId, studentId);
+            const lectures = userRole === 'ADMIN'
+                ? await lectureService.getLecturesByCourseForAdmin(courseId)
+                : await lectureService.getLecturesByCourse(courseId, userId);
 
             successResponse(res, {
                 data: lectures,
@@ -23,9 +26,9 @@ export class LectureController {
     async getLectureById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params;
-            const studentId = req.user?.userId;
+            const userId = req.user?.userId;
 
-            const lecture = await lectureService.getLectureById(id, studentId);
+            const lecture = await lectureService.getLectureById(id, userId);
 
             if (!lecture) {
                 res.status(404).json({
@@ -47,9 +50,9 @@ export class LectureController {
     async getLectureBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { slug } = req.params;
-            const studentId = req.user?.userId;
+            const userId = req.user?.userId;
 
-            const lecture = await lectureService.getLectureBySlug(slug, studentId);
+            const lecture = await lectureService.getLectureBySlug(slug, userId);
 
             if (!lecture) {
                 res.status(404).json({

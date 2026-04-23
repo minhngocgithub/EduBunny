@@ -11,6 +11,8 @@ export interface LectureDetail extends Lecture {
     isCompleted?: boolean;
     watchedSeconds?: number;
     completionRate?: number;
+    canPlay?: boolean;
+    isLocked?: boolean;
 }
 
 // Create lecture input
@@ -50,5 +52,7 @@ export interface LectureListItem {
     isCompleted?: boolean;
     watchedSeconds?: number;
     completionRate?: number;
+    canPlay?: boolean;
+    isLocked?: boolean;
 }
 

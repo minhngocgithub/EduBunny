@@ -20,7 +20,9 @@ export const useAuthStore = defineStore('auth', {
     }),
 
     getters: {
-        isLoggedIn: (state) => state.isAuthenticated && !!state.user,
+        // Consider users logged in when auth is initialized and a valid token exists.
+        // User profile can be fetched lazily and should not flip navbar to guest state.
+        isLoggedIn: (state) => state.isAuthenticated && !!state.accessToken,
         currentUser: (state) => state.user,
         userRole: (state) => state.user?.role,
         isAdmin: (state) => state.user?.role === 'ADMIN',
@@ -37,18 +39,20 @@ export const useAuthStore = defineStore('auth', {
                 const refreshToken = localStorage.getItem('refreshToken');
                 const userStr = localStorage.getItem('user');
 
-                // Check if values are valid (not "undefined" string or null)
-                if (accessToken && accessToken !== 'undefined' &&
-                    userStr && userStr !== 'undefined') {
-                    try {
-                        this.accessToken = accessToken;
-                        this.refreshToken = refreshToken;
-                        this.user = JSON.parse(userStr);
-                        this.isAuthenticated = true;
-                    } catch (error) {
-                        console.error('Error parsing user data from localStorage:', error);
-                        // Clear invalid data
-                        this.clearAuthData();
+                // Token is the source of truth for login state.
+                if (accessToken && accessToken !== 'undefined') {
+                    this.accessToken = accessToken;
+                    this.refreshToken = refreshToken && refreshToken !== 'undefined' ? refreshToken : null;
+                    this.isAuthenticated = true;
+
+                    if (userStr && userStr !== 'undefined') {
+                        try {
+                            this.user = JSON.parse(userStr);
+                        } catch (error) {
+                            console.error('Error parsing user data from localStorage:', error);
+                            this.user = null;
+                            localStorage.removeItem('user');
+                        }
                     }
                 }
             }

@@ -9,6 +9,7 @@ import { rewardService } from '../reward/reward.service';
 import { RewardTrigger } from '../reward/reward.types';
 import { monitoringService } from '../monitoring/monitoring.service';
 import { achievementCacheService } from '../achievement/achievement-cache.service';
+import { courseAccessService } from '../course/course-access.service';
 
 const prisma = new PrismaClient();
 
@@ -94,7 +95,13 @@ export class ProgressService {
     }
 
     async getCourseProgress(studentId: string, courseId: string): Promise<CourseProgressSummary | null> {
-        // Verify enrollment
+        const hasCourseAccess = await courseAccessService.hasCourseAccessByStudentId(studentId, courseId);
+        if (!hasCourseAccess) {
+            return null;
+        }
+
+        await this.ensureEnrollmentRecord(studentId, courseId);
+
         const enrollment = await prisma.enrollment.findUnique({
             where: {
                 studentId_courseId: {
@@ -198,6 +205,13 @@ export class ProgressService {
             throw new Error('Lecture not found');
         }
 
+        const canWriteProgress = await courseAccessService.canWriteProgressByStudentId(studentId, lectureId);
+        if (!canWriteProgress) {
+            throw new Error('Active entitlement required to update progress');
+        }
+
+        await this.ensureEnrollmentRecord(studentId, lecture.courseId);
+
         // Calculate completion rate
         const completionRate = lecture.duration > 0
             ? Math.min((watchedSeconds / lecture.duration) * 100, 100)
@@ -283,6 +297,13 @@ export class ProgressService {
         if (!lecture) {
             throw new Error('Lecture not found');
         }
+
+        const canWriteProgress = await courseAccessService.canWriteProgressByStudentId(studentId, lectureId);
+        if (!canWriteProgress) {
+            throw new Error('Active entitlement required to update progress');
+        }
+
+        await this.ensureEnrollmentRecord(studentId, lecture.courseId);
 
         // Get or create progress
         const existingProgress = await prisma.progress.findUnique({
@@ -390,7 +411,7 @@ export class ProgressService {
 
         // Get student info for streak
         const student = await prisma.student.findUnique({
-            where: { userId: studentId },
+            where: { id: studentId },
         });
 
         // Calculate totals
@@ -527,6 +548,24 @@ export class ProgressService {
                 },
             });
         }
+    }
+
+    private async ensureEnrollmentRecord(studentId: string, courseId: string): Promise<void> {
+        await prisma.enrollment.upsert({
+            where: {
+                studentId_courseId: {
+                    studentId,
+                    courseId,
+                },
+            },
+            create: {
+                studentId,
+                courseId,
+                progress: 0,
+                lastAccessAt: new Date(),
+            },
+            update: {},
+        });
     }
 }
 

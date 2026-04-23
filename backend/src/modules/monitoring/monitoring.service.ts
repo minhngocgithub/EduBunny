@@ -561,7 +561,7 @@ export class MonitoringService {
         // Update streak on any activity (will handle logic internally)
         try {
             await rewardService.updateStreak(userId);
-            
+
             // Grant daily login reward if this is first activity today
             if (type === ActivityType.LOGIN) {
                 await rewardService.grantByTrigger(userId, RewardTrigger.DAILY_LOGIN);

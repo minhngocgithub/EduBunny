@@ -15,7 +15,7 @@ const state: SocketState = reactive({
 
 export const useSocket = () => {
   const config = useRuntimeConfig();
-  
+
   // Initialize socket connection
   const connect = () => {
     // If socket is already connected, return it
@@ -40,7 +40,7 @@ export const useSocket = () => {
 
     isConnecting = true;
     const socketUrl = config.public.apiBaseUrl.replace('/api', '');
-    
+
     console.log('🔌 Creating new socket connection to:', socketUrl);
     socketInstance = io(socketUrl, {
       path: '/ws',

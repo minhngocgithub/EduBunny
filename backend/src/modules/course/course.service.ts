@@ -1,12 +1,13 @@
-import { PrismaClient, Course, Subject, Grade, CourseLevel } from '@prisma/client';
+import { PrismaClient, Course, Subject, Grade, CourseLevel, EntitlementStatus } from '@prisma/client/index';
 import { CreateCourseInput, UpdateCourseInput, CourseFilters, CourseListItem, CourseDetail } from './course.types';
 import { createSlug } from './course.dto';
 import { Prisma } from '@prisma/client';
+import { courseAccessService } from './course-access.service';
 
 const prisma = new PrismaClient();
 
 export class CourseService {
-    async getCourses(filters: CourseFilters, studentId?: string): Promise<{ courses: CourseListItem[]; total: number }> {
+    async getCourses(filters: CourseFilters, userId?: string): Promise<{ courses: CourseListItem[]; total: number }> {
         const {
             grade,
             subject,
@@ -71,6 +72,7 @@ export class CourseService {
                     grade: true,
                     level: true,
                     duration: true,
+                    isPublished: true,
                     isFree: true,
                     avgRating: true,
                     reviewCount: true,
@@ -90,19 +92,50 @@ export class CourseService {
             prisma.course.count({ where }),
         ]);
 
-        // Get enrollment status for student if provided
-        let enrollments: Array<{ courseId: string }> = [];
-        if (studentId) {
-            enrollments = await prisma.enrollment.findMany({
-                where: {
-                    studentId,
-                    courseId: { in: courses.map(c => c.id) },
-                },
-                select: { courseId: true },
-            });
+        let studentId: string | null = null;
+        if (userId) {
+            studentId = await courseAccessService.getStudentIdByUserId(userId);
+        }
+
+        let enrollments: Array<{ courseId: string; progress: number }> = [];
+        let activeEntitlements: Array<{ courseId: string }> = [];
+
+        if (studentId && courses.length > 0) {
+            const courseIds = courses.map((course) => course.id);
+            const now = new Date();
+
+            [enrollments, activeEntitlements] = await Promise.all([
+                prisma.enrollment.findMany({
+                    where: {
+                        studentId,
+                        courseId: { in: courseIds },
+                    },
+                    select: {
+                        courseId: true,
+                        progress: true,
+                    },
+                }),
+                prisma.courseEntitlement.findMany({
+                    where: {
+                        studentId,
+                        courseId: { in: courseIds },
+                        status: EntitlementStatus.ACTIVE,
+                        startsAt: { lte: now },
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: now } },
+                        ],
+                    },
+                    select: { courseId: true },
+                }),
+            ]);
         }
 
         const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
+        const entitledCourseIds = new Set(activeEntitlements.map(e => e.courseId));
+        const enrollmentProgressByCourseId = new Map(
+            enrollments.map((enrollment) => [enrollment.courseId, enrollment.progress])
+        );
 
         const courseList: CourseListItem[] = courses.map(course => ({
             id: course.id,
@@ -114,17 +147,23 @@ export class CourseService {
             grade: course.grade,
             level: course.level,
             duration: course.duration,
+            isPublished: course.isPublished,
             isFree: course.isFree,
             avgRating: course.avgRating,
             reviewCount: course.reviewCount,
             enrollmentCount: course._count.enrollments,
-            isEnrolled: enrolledCourseIds.has(course.id),
+            isEnrolled: (course.isFree && Boolean(studentId)) || enrolledCourseIds.has(course.id) || entitledCourseIds.has(course.id),
+            hasActiveEntitlement: entitledCourseIds.has(course.id),
+            canAccessLearningContent: (course.isFree && Boolean(studentId)) || enrolledCourseIds.has(course.id) || entitledCourseIds.has(course.id),
+            learningProgress: enrollmentProgressByCourseId.has(course.id)
+                ? Math.max(0, Math.min(100, Math.round(enrollmentProgressByCourseId.get(course.id) || 0)))
+                : undefined,
         }));
 
         return { courses: courseList, total };
     }
 
-    async getCourseById(id: string, studentId?: string): Promise<CourseDetail | null> {
+    async getCourseById(id: string, userId?: string): Promise<CourseDetail | null> {
         const course = await prisma.course.findFirst({
             where: {
                 id,
@@ -134,10 +173,6 @@ export class CourseService {
                 lectures: {
                     orderBy: { order: 'asc' },
                 },
-                enrollments: {
-                    where: studentId ? { studentId } : undefined,
-                    take: studentId ? 1 : 0,
-                },
             },
         });
 
@@ -145,28 +180,42 @@ export class CourseService {
             return null;
         }
 
-        // Get enrollment info
-        let enrollment = null;
-        if (studentId) {
-            enrollment = await prisma.enrollment.findUnique({
-                where: {
-                    studentId_courseId: {
-                        studentId,
-                        courseId: id,
-                    },
-                },
-            });
+        const [enrollmentCount, accessState] = await Promise.all([
+            prisma.enrollment.count({ where: { courseId: id } }),
+            courseAccessService.getCourseAccessState(userId, id),
+        ]);
+
+        let completedLectureIds = new Set<string>();
+        if (accessState.studentId && course.lectures.length > 0) {
+            completedLectureIds = await this.getCompletedLectureIds(
+                accessState.studentId,
+                course.lectures.map((lecture) => lecture.id)
+            );
         }
+
+        const lectures = course.lectures.map((lecture) => {
+            const canPlay = accessState.canAccessLearningContent || completedLectureIds.has(lecture.id);
+
+            return {
+                ...lecture,
+                videoUrl: canPlay ? lecture.videoUrl : null,
+                canPlay,
+                isLocked: !canPlay,
+            };
+        });
 
         return {
             ...course,
-            enrollmentCount: course.enrollments.length,
-            isEnrolled: !!enrollment,
-            lectures: course.lectures,
+            enrollmentCount,
+            isEnrolled: accessState.isEnrolled,
+            hasActiveEntitlement: accessState.hasActiveEntitlement,
+            canAccessLearningContent: accessState.canAccessLearningContent,
+            accessSource: accessState.accessSource,
+            lectures,
         };
     }
 
-    async getCourseBySlug(slug: string, studentId?: string): Promise<CourseDetail | null> {
+    async getCourseBySlug(slug: string, userId?: string): Promise<CourseDetail | null> {
         const course = await prisma.course.findFirst({
             where: {
                 slug,
@@ -183,27 +232,38 @@ export class CourseService {
             return null;
         }
 
-        // Get enrollment info
-        let enrollment = null;
-        if (studentId) {
-            enrollment = await prisma.enrollment.findUnique({
-                where: {
-                    studentId_courseId: {
-                        studentId,
-                        courseId: course.id,
-                    },
-                },
-            });
+        const [enrollmentCount, accessState] = await Promise.all([
+            prisma.enrollment.count({ where: { courseId: course.id } }),
+            courseAccessService.getCourseAccessState(userId, course.id),
+        ]);
+
+        let completedLectureIds = new Set<string>();
+        if (accessState.studentId && course.lectures.length > 0) {
+            completedLectureIds = await this.getCompletedLectureIds(
+                accessState.studentId,
+                course.lectures.map((lecture) => lecture.id)
+            );
         }
 
-        const enrollmentCount = await prisma.enrollment.count({
-            where: { courseId: course.id },
+        const lectures = course.lectures.map((lecture) => {
+            const canPlay = accessState.canAccessLearningContent || completedLectureIds.has(lecture.id);
+
+            return {
+                ...lecture,
+                videoUrl: canPlay ? lecture.videoUrl : null,
+                canPlay,
+                isLocked: !canPlay,
+            };
         });
 
         return {
             ...course,
             enrollmentCount,
-            isEnrolled: !!enrollment,
+            isEnrolled: accessState.isEnrolled,
+            hasActiveEntitlement: accessState.hasActiveEntitlement,
+            canAccessLearningContent: accessState.canAccessLearningContent,
+            accessSource: accessState.accessSource,
+            lectures,
         };
     }
 
@@ -509,6 +569,28 @@ export class CourseService {
                 totalPages: Math.ceil(total / limit),
             },
         };
+    }
+
+    private async getCompletedLectureIds(studentId: string, lectureIds: string[]): Promise<Set<string>> {
+        if (lectureIds.length === 0) {
+            return new Set<string>();
+        }
+
+        const progressRecords = await prisma.progress.findMany({
+            where: {
+                studentId,
+                lectureId: { in: lectureIds },
+                OR: [
+                    { isCompleted: true },
+                    { completedAt: { not: null } },
+                ],
+            },
+            select: {
+                lectureId: true,
+            },
+        });
+
+        return new Set(progressRecords.map((record) => record.lectureId));
     }
 }
 

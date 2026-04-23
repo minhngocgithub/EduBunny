@@ -1,5 +1,10 @@
 import { Subject, Grade, CourseLevel, Course, Lecture, Enrollment, CourseReview } from '@prisma/client';
 
+export interface CourseDetailLecture extends Lecture {
+    canPlay?: boolean;
+    isLocked?: boolean;
+}
+
 // Course with relations
 export interface CourseWithRelations extends Course {
     lectures?: Lecture[];
@@ -9,11 +14,14 @@ export interface CourseWithRelations extends Course {
 
 // Course detail response
 export interface CourseDetail extends Course {
-    lectures?: Lecture[];
+    lectures?: CourseDetailLecture[];
     enrollmentCount?: number;
     reviewCount: number;
     avgRating: number | null;
     isEnrolled?: boolean;
+    hasActiveEntitlement?: boolean;
+    canAccessLearningContent?: boolean;
+    accessSource?: 'free_course' | 'entitlement' | 'legacy_enrollment' | null;
 }
 
 // Course list item (summary)
@@ -27,11 +35,15 @@ export interface CourseListItem {
     grade: Grade;
     level: CourseLevel;
     duration: number;
+    isPublished: boolean;
     isFree: boolean;
     avgRating: number | null;
     reviewCount: number;
     enrollmentCount?: number;
     isEnrolled?: boolean;
+    hasActiveEntitlement?: boolean;
+    canAccessLearningContent?: boolean;
+    learningProgress?: number;
 }
 
 // Course filters for listing

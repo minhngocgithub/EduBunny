@@ -9,6 +9,7 @@ import {
   UpdateQuizDTO,
 } from './quiz.dto';
 import { quizSessionService } from './quiz-session.service';
+import { courseAccessService } from '../course/course-access.service';
 
 const prisma = new PrismaClient();
 
@@ -157,7 +158,7 @@ export class QuizService {
       }));
     }
 
-    const studentId = await this.getStudentIdByUserId(studentUserId);
+    const studentId = await courseAccessService.requireStudentIdByUserId(studentUserId);
     const attempts = await prisma.quizAttempt.findMany({
       where: {
         studentId,
@@ -269,7 +270,7 @@ export class QuizService {
   }
 
   async startAttempt(quizId: string, userId: string) {
-    const studentId = await this.getStudentIdByUserId(userId);
+    const studentId = await courseAccessService.requireStudentIdByUserId(userId);
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
@@ -291,17 +292,9 @@ export class QuizService {
       throw new Error('Quiz is not active');
     }
 
-    const enrolled = await prisma.enrollment.findUnique({
-      where: {
-        studentId_courseId: {
-          studentId,
-          courseId: quiz.courseId,
-        },
-      },
-    });
-
-    if (!enrolled) {
-      throw new Error('Student is not enrolled in this course');
+    const canStartQuiz = await courseAccessService.canStartQuizByCourseId(studentId, quiz.courseId);
+    if (!canStartQuiz) {
+      throw new Error('Active entitlement required for this quiz');
     }
 
     const attemptsUsed = await prisma.quizAttempt.count({
@@ -384,7 +377,7 @@ export class QuizService {
   }
 
   async saveAnswer(attemptId: string, userId: string, questionId: string, answer: string) {
-    const studentId = await this.getStudentIdByUserId(userId);
+    const studentId = await courseAccessService.requireStudentIdByUserId(userId);
 
     const attempt = await prisma.quizAttempt.findUnique({
       where: { id: attemptId },
@@ -419,7 +412,7 @@ export class QuizService {
   }
 
   async submitAttempt(quizId: string, userId: string, input: SubmitAnswersDTO) {
-    const studentId = await this.getStudentIdByUserId(userId);
+    const studentId = await courseAccessService.requireStudentIdByUserId(userId);
     return this.submitAttemptInternal(quizId, input.attemptId, input.answers, studentId);
   }
 
@@ -452,7 +445,7 @@ export class QuizService {
   }
 
   async getAttemptResult(attemptId: string, userId: string) {
-    const studentId = await this.getStudentIdByUserId(userId);
+    const studentId = await courseAccessService.requireStudentIdByUserId(userId);
 
     const attempt = await prisma.quizAttempt.findUnique({
       where: { id: attemptId },
@@ -535,6 +528,15 @@ export class QuizService {
 
     if (attempt.completedAt) {
       throw new Error('Quiz attempt is already completed');
+    }
+
+    const canSubmitQuiz = await courseAccessService.canSubmitQuizByCourseId(
+      studentId,
+      attempt.quiz.courseId
+    );
+
+    if (!canSubmitQuiz) {
+      throw new Error('Active entitlement required for this quiz');
     }
 
     const answerMap = new Map(rawAnswers.map((answer) => [answer.questionId, answer.answer]));
@@ -637,19 +639,6 @@ export class QuizService {
     }
 
     return normalizedActual === normalizedCorrect;
-  }
-
-  private async getStudentIdByUserId(userId: string): Promise<string> {
-    const student = await prisma.student.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-
-    if (!student) {
-      throw new Error('Student profile not found for this user');
-    }
-
-    return student.id;
   }
 }
 
