@@ -9,7 +9,6 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import { createServer } from 'http';
-import fs from 'fs';
 import path from 'path';
 
 import './shared/config/google-passport.config';
@@ -36,17 +35,16 @@ import { paymentService } from './modules/payment/payment.service';
 const app = express();
 const PORT = process.env.PORT || 3001;
 const API = process.env.API_PREFIX || '/api';
-const uploadsDir = path.resolve(process.cwd(), 'uploads');
 
 const httpServer = createServer(app);
 
-app.use(helmet({
-    crossOriginResourcePolicy: {
-        policy: 'cross-origin',
-    },
-}));
+app.use(helmet());
+const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'])
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
@@ -60,13 +58,45 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-app.use('/uploads', express.static(uploadsDir));
-
 app.use(passport.initialize());
+
+// Static file serving
+const uploadsDir = path.resolve(process.cwd(), 'uploads');
+const resolveRequestOrigin = (req: express.Request): string | null => {
+    const originHeader = req.headers.origin;
+    if (typeof originHeader === 'string' && originHeader.length > 0) {
+        return originHeader;
+    }
+
+    const refererHeader = req.headers.referer;
+    if (typeof refererHeader === 'string' && refererHeader.length > 0) {
+        try {
+            return new URL(refererHeader).origin;
+        } catch {
+            return null;
+        }
+    }
+
+    return null;
+};
+
+app.use(
+    '/uploads',
+    (req, res, next) => {
+        const requestOrigin = resolveRequestOrigin(req);
+
+        if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+            res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+            res.setHeader('Vary', 'Origin, Referer');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        } else {
+            res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        }
+
+        next();
+    },
+    express.static(uploadsDir)
+);
 
 app.get('/health', (_req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
