@@ -102,9 +102,7 @@ export interface AdminUserListItem {
         firstName: string;
         lastName: string;
     } | null;
-}
-
-export interface AdminUsersListResponse {
+}export interface AdminUsersListResponse {
     users: AdminUserListItem[];
     pagination: {
         page: number;

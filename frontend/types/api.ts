@@ -1,9 +1,15 @@
 export interface ApiResponse<T = unknown> {
-    success: boolean;
-    data?: T;
-    message?: string;
-    error: string;
-    statusCode?: number;
+  success: boolean;
+  data?: T;
+  message?: string;
+  meta?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    totalPages?: number;
+  };
+  error: string;
+  statusCode?: number;
 }
 export interface PaginatedResponse<T> {
   items: T[]
@@ -82,10 +88,18 @@ export const API_ENDPOINTS = {
   COURSE: {
     LIST: '/courses',
     DETAIL: (id: string) => `/courses/${id}`,
+    DETAIL_BY_SLUG: (slug: string) => `/courses/slug/${slug}`,
     ADMIN: {
       LIST: '/courses/admin/all',
       UPLOAD_THUMBNAIL: '/courses/upload-thumbnail',
     },
+  },
+  RECOMMENDATION: {
+    LIST: '/recommendations',
+    NEXT: '/recommendations/next',
+    POPULAR: '/recommendations/popular',
+    CHALLENGE: '/recommendations/challenge',
+    REINFORCEMENT: '/recommendations/reinforcement',
   },
   // Lecture
   LECTURE: {

@@ -111,6 +111,8 @@ export interface CourseDetail {
     duration: number;
     isPublished: boolean;
     isFree: boolean;
+    avgRating?: number | null;
+    reviewCount?: number;
     enrollmentCount: number;
     isEnrolled: boolean;
     hasActiveEntitlement?: boolean;

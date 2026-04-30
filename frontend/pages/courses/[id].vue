@@ -29,7 +29,8 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { apiClient } = useApiClient();
 const { showToast } = useToast();
-const courseId = route.params.id as string;
+const runtimeConfig = useRuntimeConfig();
+const courseIdentifier = computed(() => String(route.params.id || ''));
 
 const loading = ref(true);
 const course = ref<CourseDetail | null>(null);
@@ -223,6 +224,127 @@ const gradeLabel = (grade: Grade) => {
     return map[grade] || grade;
 };
 
+const normalizeBaseUrl = (value: string): string => {
+    return value.endsWith('/') ? value.slice(0, -1) : value;
+};
+
+const apiBaseOrigin = computed(() => {
+    try {
+        return new URL(String(runtimeConfig.public.apiBaseUrl || 'http://localhost:3001/api')).origin;
+    } catch {
+        if (process.client) {
+            return window.location.origin;
+        }
+
+        return 'http://localhost:3001';
+    }
+});
+
+const resolveCourseThumbnail = (thumbnail: string | null | undefined): string | null => {
+    if (typeof thumbnail !== 'string') {
+        return null;
+    }
+
+    const rawValue = thumbnail.trim();
+    if (!rawValue) {
+        return null;
+    }
+
+    if (rawValue.startsWith('data:image/')) {
+        return rawValue;
+    }
+
+    if (rawValue.startsWith('/uploads/')) {
+        return `${apiBaseOrigin.value}${rawValue}`;
+    }
+
+    if (rawValue.startsWith('uploads/')) {
+        return `${apiBaseOrigin.value}/${rawValue}`;
+    }
+
+    try {
+        const parsedUrl = new URL(rawValue);
+        return parsedUrl.toString();
+    } catch {
+        return rawValue;
+    }
+};
+
+const siteUrl = computed(() => {
+    return normalizeBaseUrl(String(runtimeConfig.public.siteUrl || 'http://localhost:3000'));
+});
+
+const courseThumbnailUrl = computed(() => {
+    return resolveCourseThumbnail(course.value?.thumbnail);
+});
+
+const canonicalPath = computed(() => {
+    if (!course.value) {
+        return `/courses/${courseIdentifier.value}`;
+    }
+
+    return `/courses/${course.value.slug || course.value.id}`;
+});
+
+const canonicalUrl = computed(() => {
+    return `${siteUrl.value}${canonicalPath.value}`;
+});
+
+const seoTitle = computed(() => {
+    if (!course.value) {
+        return 'Khóa học | EduForKids';
+    }
+
+    return `${course.value.title} | EduForKids`;
+});
+
+const seoDescription = computed(() => {
+    if (!course.value) {
+        return 'Chi tiết khóa học dành cho học sinh tiểu học trên EduForKids.';
+    }
+
+    if (course.value.description?.trim()) {
+        return course.value.description.trim();
+    }
+
+    return `Khám phá khóa học ${course.value.title} dành cho học sinh ${gradeLabel(course.value.grade)}.`;
+});
+
+const courseJsonLd = computed(() => {
+    if (!course.value) {
+        return null;
+    }
+
+    const jsonLd: Record<string, unknown> = {
+        '@context': 'https://schema.org',
+        '@type': 'Course',
+        name: course.value.title,
+        description: seoDescription.value,
+        url: canonicalUrl.value,
+        provider: {
+            '@type': 'Organization',
+            name: 'EduForKids',
+            url: siteUrl.value,
+        },
+        educationalLevel: gradeLabel(course.value.grade),
+        about: subjectLabel(course.value.subject),
+    };
+
+    if (courseThumbnailUrl.value) {
+        jsonLd.image = [courseThumbnailUrl.value];
+    }
+
+    if (typeof course.value.avgRating === 'number' && (course.value.reviewCount || 0) > 0) {
+        jsonLd.aggregateRating = {
+            '@type': 'AggregateRating',
+            ratingValue: Number(course.value.avgRating.toFixed(1)),
+            reviewCount: course.value.reviewCount || 0,
+        };
+    }
+
+    return jsonLd;
+});
+
 const mergeLectureLearningState = (lectureItems: LectureListItem[]) => {
     if (!course.value || !Array.isArray(course.value.lectures) || !Array.isArray(lectureItems)) {
         return;
@@ -257,13 +379,13 @@ const mergeLectureLearningState = (lectureItems: LectureListItem[]) => {
     });
 };
 
-const fetchLectureLearningState = async () => {
+const fetchLectureLearningState = async (resolvedCourseId: string) => {
     if (!isAuthenticated.value) {
         return;
     }
 
     try {
-        const response = await apiClient.get<LectureListItem[]>(API_ENDPOINTS.LECTURE.LIST_BY_COURSE(courseId));
+        const response = await apiClient.get<LectureListItem[]>(API_ENDPOINTS.LECTURE.LIST_BY_COURSE(resolvedCourseId));
         if (response.success && response.data) {
             mergeLectureLearningState(response.data);
         }
@@ -461,9 +583,9 @@ const updateLocalLectureProgress = (lectureId: string, watchedSeconds: number, c
 const isHttpAuthError = (error: unknown): boolean => {
     const statusCode =
         typeof error === 'object' &&
-        error !== null &&
-        'statusCode' in error &&
-        typeof (error as { statusCode?: unknown }).statusCode === 'number'
+            error !== null &&
+            'statusCode' in error &&
+            typeof (error as { statusCode?: unknown }).statusCode === 'number'
             ? (error as { statusCode: number }).statusCode
             : 0;
 
@@ -598,16 +720,67 @@ const handleVideoEnded = async () => {
     await markLectureAsCompleted(lectureId);
 };
 
+const getHttpStatusCode = (error: unknown): number => {
+    return typeof error === 'object' &&
+        error !== null &&
+        'statusCode' in error &&
+        typeof (error as { statusCode?: unknown }).statusCode === 'number'
+        ? (error as { statusCode: number }).statusCode
+        : 0;
+};
+
+const tryFetchCourseBySlug = async (slug: string): Promise<CourseDetail | null> => {
+    try {
+        const response = await apiClient.get<CourseDetail>(API_ENDPOINTS.COURSE.DETAIL_BY_SLUG(slug), undefined, false);
+        if (response.success && response.data) {
+            return response.data;
+        }
+
+        return null;
+    } catch (error) {
+        if (getHttpStatusCode(error) === 404) {
+            return null;
+        }
+        throw error;
+    }
+};
+
+const tryFetchCourseById = async (id: string): Promise<CourseDetail | null> => {
+    try {
+        const response = await apiClient.get<CourseDetail>(API_ENDPOINTS.COURSE.DETAIL(id), undefined, false);
+        if (response.success && response.data) {
+            return response.data;
+        }
+
+        return null;
+    } catch (error) {
+        if (getHttpStatusCode(error) === 404) {
+            return null;
+        }
+        throw error;
+    }
+};
+
 const fetchCourse = async () => {
     loading.value = true;
     try {
-        const response = await apiClient.get<CourseDetail>(API_ENDPOINTS.COURSE.DETAIL(courseId));
-        if (response.success && response.data) {
-            course.value = response.data;
+        const identifier = courseIdentifier.value;
 
-            await fetchLectureLearningState();
+        if (!identifier) {
+            showToast({ type: 'error', message: 'Không tìm thấy khóa học.' });
+            await router.replace('/courses');
+            return;
+        }
 
-            if (!response.data.isPublished) {
+        const bySlug = await tryFetchCourseBySlug(identifier);
+        const resolvedCourse = bySlug || (await tryFetchCourseById(identifier));
+
+        if (resolvedCourse) {
+            course.value = resolvedCourse;
+
+            await fetchLectureLearningState(resolvedCourse.id);
+
+            if (!resolvedCourse.isPublished) {
                 showToast({ type: 'info', message: 'Khóa học này chưa được phát hành.' });
                 await router.replace('/courses');
                 return;
@@ -616,6 +789,10 @@ const fetchCourse = async () => {
             if (course.value.lectures.length > 0) {
                 const firstPlayable = course.value.lectures.find(canPlayLecture) || course.value.lectures[0];
                 selectedLectureId.value = firstPlayable.id;
+            }
+
+            if (process.client && resolvedCourse.slug && route.params.id !== resolvedCourse.slug) {
+                await router.replace({ path: `/courses/${resolvedCourse.slug}`, query: route.query });
             }
         } else {
             showToast({ type: 'error', message: 'Không tìm thấy khóa học.' });
@@ -680,12 +857,18 @@ const syncLearningPanelHeight = () => {
 };
 
 onMounted(() => {
-    void fetchCourse();
-
     if (typeof window !== 'undefined') {
         window.addEventListener('resize', syncLearningPanelHeight);
     }
 });
+
+watch(
+    () => courseIdentifier.value,
+    () => {
+        void fetchCourse();
+    },
+    { immediate: true }
+);
 
 watch(
     () => course.value?.lectures.length || 0,
@@ -749,11 +932,34 @@ onBeforeUnmount(() => {
     }
 });
 
-useHead({
-    title: `Khóa học - EduForKids`,
-    meta: [
-        { name: 'description', content: 'Chi tiết khóa học' },
-    ],
+useHead(() => {
+    const meta = [
+        { name: 'description', content: seoDescription.value },
+        { property: 'og:title', content: seoTitle.value },
+        { property: 'og:description', content: seoDescription.value },
+        { property: 'og:url', content: canonicalUrl.value },
+    ];
+
+    if (courseThumbnailUrl.value) {
+        meta.push({ property: 'og:image', content: courseThumbnailUrl.value });
+    }
+
+    return {
+        title: seoTitle.value,
+        meta,
+        link: [
+            { rel: 'canonical', href: canonicalUrl.value },
+        ],
+        script: courseJsonLd.value
+            ? [
+                {
+                    key: 'course-jsonld',
+                    type: 'application/ld+json',
+                    children: JSON.stringify(courseJsonLd.value),
+                },
+            ]
+            : [],
+    };
 });
 </script>
 
@@ -777,15 +983,15 @@ useHead({
             <div v-else-if="course" class="space-y-6">
                 <div class="overflow-hidden bg-white shadow-xl dark:bg-slate-800 rounded-3xl">
                     <div class="relative h-56 bg-slate-100 dark:bg-slate-900 sm:h-72">
-                        <img v-if="course.thumbnail" :src="course.thumbnail" :alt="course.title"
+                        <img v-if="courseThumbnailUrl" :src="courseThumbnailUrl" :alt="course.title"
                             class="object-cover w-full h-full" />
                         <div v-else class="flex items-center justify-center w-full h-full text-6xl">📚</div>
                     </div>
 
                     <div class="p-6 space-y-3">
                         <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
-                            <span class="px-3 py-1 text-green-700 bg-green-100 rounded-full"
-                                v-if="course.isFree">Miễn phí</span>
+                            <span class="px-3 py-1 text-green-700 bg-green-100 rounded-full" v-if="course.isFree">Miễn
+                                phí</span>
                             <span class="px-3 py-1 text-blue-700 bg-blue-100 rounded-full">{{
                                 subjectLabel(course.subject) }}</span>
                             <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">{{
@@ -796,59 +1002,55 @@ useHead({
 
                         <h1 class="text-2xl font-bold text-gray-800 font-display dark:text-white">{{ course.title }}
                         </h1>
-                        <p class="text-sm text-gray-600 dark:text-slate-300">{{ course.description || 'Chưa có mô tả.' }}</p>
+                        <p class="text-sm text-gray-600 dark:text-slate-300">{{ course.description || 'Chưa có mô tả.'
+                            }}</p>
                     </div>
                 </div>
 
                 <div class="grid gap-6 lg:grid-cols-3 lg:items-start">
                     <div class="lg:col-span-2 lg:self-start">
-                        <div ref="learningPanelRef" class="p-5 bg-white shadow-xl dark:bg-slate-800 rounded-3xl lg:self-start">
-                        <h2 class="mb-4 text-lg font-bold text-gray-800 dark:text-white">Bài học đang xem</h2>
+                        <div ref="learningPanelRef"
+                            class="p-5 bg-white shadow-xl dark:bg-slate-800 rounded-3xl lg:self-start">
+                            <h2 class="mb-4 text-lg font-bold text-gray-800 dark:text-white">Bài học đang xem</h2>
 
-                        <div v-if="selectedLecture" class="space-y-4">
-                            <div class="overflow-hidden aspect-video rounded-2xl bg-slate-100 dark:bg-slate-900">
-                                <div v-if="selectedLecture && !canPlayLecture(selectedLecture)"
-                                    class="flex items-center justify-center w-full h-full px-6 text-center">
-                                    <p class="text-sm font-semibold text-slate-500">Bài học này đang bị khóa. Đăng ký
-                                        gói học để tiếp tục, hoặc xem lại các bài đã hoàn thành.</p>
+                            <div v-if="selectedLecture" class="space-y-4">
+                                <div class="overflow-hidden aspect-video rounded-2xl bg-slate-100 dark:bg-slate-900">
+                                    <div v-if="selectedLecture && !canPlayLecture(selectedLecture)"
+                                        class="flex items-center justify-center w-full h-full px-6 text-center">
+                                        <p class="text-sm font-semibold text-slate-500">Bài học này đang bị khóa. Đăng
+                                            ký
+                                            gói học để tiếp tục, hoặc xem lại các bài đã hoàn thành.</p>
+                                    </div>
+
+                                    <div v-else-if="currentVideoSource.type === 'youtube'"
+                                        ref="youtubePlayerContainerRef" class="w-full h-full" />
+
+                                    <video v-else-if="currentVideoSource.type === 'video'" ref="videoRef"
+                                        class="w-full h-full" controls :src="currentVideoSource.src"
+                                        @loadedmetadata="handleVideoLoadedMetadata" @timeupdate="handleVideoTimeUpdate"
+                                        @ended="handleVideoEnded" />
+
+                                    <div v-else
+                                        class="flex items-center justify-center w-full h-full text-sm text-slate-500">
+                                        Bài học này chưa có video.
+                                    </div>
                                 </div>
 
-                                <div v-else-if="currentVideoSource.type === 'youtube'" ref="youtubePlayerContainerRef"
-                                    class="w-full h-full" />
+                                <div>
+                                    <h3 class="text-lg font-bold text-gray-800 dark:text-white">{{ selectedLecture.title
+                                        }}
+                                    </h3>
+                                    <p class="text-sm text-gray-600 dark:text-slate-300">{{ selectedLecture.description
+                                        ||
+                                        'Không có mô tả cho bài học này.' }}</p>
 
-                                <video
-                                    v-else-if="currentVideoSource.type === 'video'"
-                                    ref="videoRef"
-                                    class="w-full h-full"
-                                    controls
-                                    :src="currentVideoSource.src"
-                                    @loadedmetadata="handleVideoLoadedMetadata"
-                                    @timeupdate="handleVideoTimeUpdate"
-                                    @ended="handleVideoEnded"
-                                />
-
-                                <div v-else
-                                    class="flex items-center justify-center w-full h-full text-sm text-slate-500">
-                                    Bài học này chưa có video.
+                                    <button v-if="showNextLectureButton && nextLecture" @click="goToNextLecture"
+                                        class="inline-flex items-center gap-2 px-4 py-2 mt-3 text-sm font-bold text-white transition-colors rounded-full bg-primary hover:bg-primary/90">
+                                        Bài tiếp theo: {{ nextLecture.order }}. {{ nextLecture.title }}
+                                        <span class="text-base material-symbols-outlined">arrow_forward</span>
+                                    </button>
                                 </div>
                             </div>
-
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-800 dark:text-white">{{ selectedLecture.title }}
-                                </h3>
-                                <p class="text-sm text-gray-600 dark:text-slate-300">{{ selectedLecture.description ||
-                                    'Không có mô tả cho bài học này.' }}</p>
-
-                                <button
-                                    v-if="showNextLectureButton && nextLecture"
-                                    @click="goToNextLecture"
-                                    class="inline-flex items-center gap-2 px-4 py-2 mt-3 text-sm font-bold text-white transition-colors rounded-full bg-primary hover:bg-primary/90"
-                                >
-                                    Bài tiếp theo: {{ nextLecture.order }}. {{ nextLecture.title }}
-                                    <span class="text-base material-symbols-outlined">arrow_forward</span>
-                                </button>
-                            </div>
-                        </div>
 
                             <p v-else class="text-sm text-slate-500">Khóa học chưa có bài giảng.</p>
                         </div>
@@ -859,55 +1061,45 @@ useHead({
                         <div class="flex items-center justify-between gap-3 mb-4">
                             <h2 class="text-lg font-bold text-gray-800 dark:text-white">Danh sách bài học</h2>
 
-                            <button
-                                v-if="shouldCollapseLectureList"
-                                @click="toggleLectureList"
-                                class="inline-flex items-center gap-1 text-xs font-bold rounded-full border border-primary/40 bg-primary/10 text-primary px-3 py-1.5 hover:bg-primary/15 transition-colors"
-                            >
+                            <button v-if="shouldCollapseLectureList" @click="toggleLectureList"
+                                class="inline-flex items-center gap-1 text-xs font-bold rounded-full border border-primary/40 bg-primary/10 text-primary px-3 py-1.5 hover:bg-primary/15 transition-colors">
                                 <span>{{ lectureListToggleLabel }}</span>
                                 <span
                                     class="text-base leading-none transition-transform duration-300 material-symbols-outlined"
-                                    :class="isLectureListExpanded ? 'rotate-180' : ''"
-                                >expand_more</span>
+                                    :class="isLectureListExpanded ? 'rotate-180' : ''">expand_more</span>
                             </button>
                         </div>
 
-                        <div v-if="course.lectures.length === 0" class="text-sm text-slate-500">Chưa có bài học nào.</div>
+                        <div v-if="course.lectures.length === 0" class="text-sm text-slate-500">Chưa có bài học nào.
+                        </div>
 
                         <div v-else class="relative flex-1 min-h-0">
-                            <div
-                                class="space-y-3 transition-[max-height] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] course-lectures-scroll"
+                            <div class="space-y-3 transition-[max-height] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] course-lectures-scroll"
                                 :class="isLectureListExpanded || !shouldCollapseLectureList
                                     ? 'h-full overflow-y-auto'
                                     : isDesktopLectureSyncActive
                                         ? 'h-full overflow-hidden'
-                                        : 'max-h-[18rem] sm:max-h-[20rem] overflow-hidden'"
-                            >
-                                <button v-for="lecture in course.lectures" :key="lecture.id" @click="selectLecture(lecture)"
+                                        : 'max-h-[18rem] sm:max-h-[20rem] overflow-hidden'">
+                                <button v-for="lecture in course.lectures" :key="lecture.id"
+                                    @click="selectLecture(lecture)"
                                     class="w-full p-3 text-left transition-all border rounded-2xl" :class="selectedLectureId === lecture.id
                                         ? 'border-primary bg-primary/5'
                                         : 'border-slate-200 dark:border-slate-700 hover:border-primary/40'">
                                     <div class="flex items-start justify-between gap-2">
-                                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-200">{{ lecture.order }}.
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-200">{{
+                                            lecture.order }}.
                                             {{ lecture.title }}</p>
                                         <div class="flex items-center gap-2 shrink-0">
-                                            <span
-                                                v-if="isLectureCompleted(lecture)"
+                                            <span v-if="isLectureCompleted(lecture)"
                                                 class="text-xl text-green-600 material-symbols-outlined"
-                                                title="Đã hoàn thành"
-                                            >check_circle</span>
-                                            <span
-                                                v-else-if="isLectureInProgress(lecture)"
-                                                class="text-[10px] font-bold px-2 py-1 rounded-full bg-orange-100 text-orange-700"
-                                            >Đang học</span>
-                                            <span
-                                                v-else-if="lecture.isPreview"
-                                                class="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700"
-                                            >Preview</span>
-                                            <span
-                                                v-else-if="!canPlayLecture(lecture)"
-                                                class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-600"
-                                            >Khóa</span>
+                                                title="Đã hoàn thành">check_circle</span>
+                                            <span v-else-if="isLectureInProgress(lecture)"
+                                                class="text-[10px] font-bold px-2 py-1 rounded-full bg-orange-100 text-orange-700">Đang
+                                                học</span>
+                                            <span v-else-if="lecture.isPreview"
+                                                class="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">Preview</span>
+                                            <span v-else-if="!canPlayLecture(lecture)"
+                                                class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-600">Khóa</span>
                                         </div>
                                     </div>
                                     <p class="mt-1 text-xs text-slate-500">
@@ -919,16 +1111,12 @@ useHead({
                                 </button>
                             </div>
 
-                            <div
-                                v-if="shouldCollapseLectureList && !isLectureListExpanded"
-                                class="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-800 dark:via-slate-800/95"
-                            />
+                            <div v-if="shouldCollapseLectureList && !isLectureListExpanded"
+                                class="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-800 dark:via-slate-800/95" />
                         </div>
 
-                        <p
-                            v-if="shouldCollapseLectureList && !isLectureListExpanded"
-                            class="mt-3 text-xs font-medium text-slate-500"
-                        >
+                        <p v-if="shouldCollapseLectureList && !isLectureListExpanded"
+                            class="mt-3 text-xs font-medium text-slate-500">
                             +{{ hiddenLectureCount }} bài học đang được thu gọn.
                         </p>
 

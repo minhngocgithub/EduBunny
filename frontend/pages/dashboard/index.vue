@@ -190,7 +190,7 @@
                   class="relative overflow-hidden transition-all duration-500 border border-white shadow-xl group rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm dark:border-white/5 hover:shadow-2xl hover:-translate-y-2">
                   <div
                     class="relative h-40 overflow-hidden bg-gray-100 sm:h-48 rounded-t-2xl sm:rounded-t-3xl dark:bg-slate-800">
-                    <img v-if="course.thumbnail" :src="course.thumbnail" :alt="course.title"
+                    <img v-if="getCourseThumbnailSrc(course)" :src="getCourseThumbnailSrc(course) || ''" :alt="course.title"
                       class="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110" />
                     <div v-else class="flex items-center justify-center w-full h-full text-6xl">
                       {{ getSubjectIcon(course.subject) }}
@@ -356,10 +356,23 @@ definePageMeta({
 const { apiClient } = useApiClient();
 const { user, isStudent, isParent } = useAuth();
 const userStore = useUserStore();
+const runtimeConfig = useRuntimeConfig();
 
 const loading = ref(true);
 const stats = ref<any>(null);
 const courses = ref<CourseListItem[]>([]);
+
+const apiBaseOrigin = computed(() => {
+  try {
+    return new URL(String(runtimeConfig.public.apiBaseUrl || 'http://localhost:3001/api')).origin;
+  } catch {
+    if (process.client) {
+      return window.location.origin;
+    }
+
+    return 'http://localhost:3001';
+  }
+});
 
 // Computed properties - Match Navbar exactly
 const userName = computed(() => {
@@ -474,6 +487,40 @@ const getCourseLevelName = (level: CourseLevel): string => {
   };
 
   return levelNames[level] || level;
+};
+
+const resolveCourseThumbnail = (thumbnail: string | null | undefined): string | null => {
+  if (typeof thumbnail !== 'string') {
+    return null;
+  }
+
+  const rawValue = thumbnail.trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  if (rawValue.startsWith('data:image/')) {
+    return rawValue;
+  }
+
+  if (rawValue.startsWith('/uploads/')) {
+    return `${apiBaseOrigin.value}${rawValue}`;
+  }
+
+  if (rawValue.startsWith('uploads/')) {
+    return `${apiBaseOrigin.value}/${rawValue}`;
+  }
+
+  try {
+    const parsedUrl = new URL(rawValue);
+    return parsedUrl.toString();
+  } catch {
+    return rawValue;
+  }
+};
+
+const getCourseThumbnailSrc = (course: CourseListItem): string | null => {
+  return resolveCourseThumbnail(course.thumbnail);
 };
 
 const fetchLearningMapCourses = async () => {
